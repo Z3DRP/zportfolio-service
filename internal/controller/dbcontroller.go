@@ -42,9 +42,8 @@ func GetDetails(ctx context.Context) (models.Detail, error) {
 		return models.Detail{}, err
 	}
 
-	if _, ok := details.(models.Detail); ok {
-		detail = details.(models.Detail)
-	} else {
+	detail, ok := details.(models.Detail)
+	if !ok {
 		return models.Detail{}, fmt.Errorf("invalid type for detail: %T", detail)
 	}
 
@@ -74,17 +73,20 @@ func GetSkills(ctx context.Context) ([]models.Skill, error) {
 func GetPortfolioData(ctx context.Context) (models.Responser, error) {
 	skills, err := GetSkills(ctx)
 	if err != nil {
-		return nil, err
+		skillErr := fmt.Errorf("%w: %s", dacstore.ErrFetchSkill, err)
+		return nil, skillErr
 	}
 
 	xp, err := GetExperiences(ctx)
 	if err != nil {
-		return nil, err
+		xpErr := fmt.Errorf("%w: %s", dacstore.ErrFetchExperience, err)
+		return nil, xpErr
 	}
 
 	details, err := GetDetails(ctx)
 	if err != nil {
-		return nil, err
+		detailErr := fmt.Errorf("%w: %s", dacstore.ErrFetchDetails, err)
+		return nil, detailErr
 	}
 
 	return models.NewPortfolioResponse(details, xp, skills), nil

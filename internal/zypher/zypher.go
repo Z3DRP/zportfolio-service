@@ -4,10 +4,20 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"regexp"
 	"sync"
 	"unicode"
+
+	"github.com/Z3DRP/zportfolio-service/config"
+	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
+
+var logfile = zlg.NewLogFile(
+	zlg.WithFilename(fmt.Sprintf("%s/zypher/%s", config.LogPrefix, config.LogName)),
+)
+
+var logger = config.NewLogger(logfile, "trace", true, false)
 
 type Zypher struct {
 	Shift             int // number of runes/digits to shift, defaults to 3
@@ -158,45 +168,59 @@ func (z Zypher) Zyph(arg string) (string, error) {
 		return "", InvalidString
 	}
 
-	if z.ShiftIterCount <= 0 {
+	if z.ShiftIterCount < 0 {
 		MissingShiftIterCount := errors.New(`invalid zypher, shift iter count expected but not found`)
 		return "", MissingShiftIterCount
 	}
 
-	if z.HashIterCount <= 0 {
+	if z.HashIterCount < 0 {
 		MissingHashIterCount := errors.New(`invalid zypher, hash iter count expected but not found`)
 		return "", MissingHashIterCount
 	}
 
 	// TODO Zyph shifts string then hashes it foreach shiftItercount and foreach hashItercount
-	result := make([]rune, len(arg))
+	var result = make([]rune, len(arg))
+	logger.MustDebug(fmt.Sprintf("arg size: %v; result size: %v", len(arg), len(result)))
 	var wg sync.WaitGroup
 
 	for i := 0; i < z.ShiftIterCount; i++ {
 		for indx, r := range arg {
 			wg.Add(1)
-			go func() {
+			go func(indx int, r rune) {
 				defer wg.Done()
+				if indx >= len(result) {
+					return
+				}
 				alt := false
 				if z.Alternate {
 					alt = indx%2 != 0
 				}
 
-				shift(&result[indx], r, z.Shift, alt, z.IgnoreSpace)
-			}()
+				asciShift(&result[indx], r, z.Shift, alt, z.IgnoreSpace)
+			}(indx, r)
 		}
+
 		wg.Wait()
-		if z.currentHashCount <= z.HashIterCount {
-			hsh := sha512.New()
-			hsh.Write([]byte(string(result)))
-			bs := hsh.Sum(nil)
-			arg = hex.EncodeToString(bs)
-			z.hashCountMtx.Lock()
-			z.currentHashCount++
-			z.hashCountMtx.Unlock()
-		}
+		arg = string(result)
+		// TODO tweak this so hash iterations dont get missed for now moved outside of this loop and just hash for hash count
+		// z.hashCountMtx.Lock()
+		// if z.currentHashCount <= z.HashIterCount {
+		// 	hsh := sha512.New()
+		// 	hsh.Write([]byte(string(result)))
+		// 	bs := hsh.Sum(nil)
+		// 	arg = hex.EncodeToString(bs)
+		// 	z.currentHashCount++
+		// }
+		// z.hashCountMtx.Unlock()
 	}
-	return string(result), nil
+
+	for i := 0; i < z.HashIterCount; i++ {
+		hsh := sha512.New()
+		hsh.Write([]byte(arg))
+		bs := hsh.Sum(nil)
+		arg = hex.EncodeToString(bs)
+	}
+	return arg, nil
 }
 
 func (z Zypher) ZypHash(arg string) (string, error) {

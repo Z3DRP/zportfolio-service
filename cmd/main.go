@@ -16,7 +16,7 @@ var logger = zlg.NewLogger(
 	logfile,
 	zlg.WithJsonFormatter(true),
 	zlg.WithLevel("trace"),
-	zlg.WithReportCaller(true),
+	zlg.WithReportCaller(false),
 )
 
 func run() {
@@ -29,6 +29,8 @@ func run() {
 	if err := zserver.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.MustDebug(fmt.Sprintf("fatal server error: %s", err))
 	}
+
+	logger.MustDebug("server is live and running")
 
 	routes.HandleShutdown(zserver)
 }

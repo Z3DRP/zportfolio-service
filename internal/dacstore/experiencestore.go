@@ -81,7 +81,7 @@ func (e *ExperienceStore) FetchByName(ctx context.Context, name string) (models.
 
 func (e *ExperienceStore) Fetch(ctx context.Context) ([]models.Modler, error) {
 	var xps []models.Modler
-	cur, err := e.collection.Find(ctx, nil)
+	cur, err := e.collection.Find(ctx, bson.M{})
 	if err != nil {
 		logger.MustDebug("error occurred while fetching experience")
 		return nil, err

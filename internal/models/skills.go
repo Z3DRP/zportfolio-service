@@ -9,14 +9,14 @@ import (
 type Skill struct {
 	Id   primitive.ObjectID `bson:"_id,omitempty"`
 	Name string             `bson:"name"`
-	Yrs  float32            `bson:"years"`
+	Yrs  float64            `bson:"years"`
 }
 
 func (s Skill) ViewAttr() string {
-	return fmt.Sprintf("id: %v, name: %s, yrs: %s", s.Id, s.Name, s.Yrs)
+	return fmt.Sprintf("id: %v, name: %s, yrs: %v", s.Id, s.Name, s.Yrs)
 }
 
-func NewSkill(name string, yrs float32) *Skill {
+func NewSkill(name string, yrs float64) *Skill {
 	return &Skill{
 		Name: name,
 		Yrs:  yrs,

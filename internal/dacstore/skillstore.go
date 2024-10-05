@@ -24,7 +24,8 @@ func newSkillStore(ctx context.Context, uri, dbname, collectionName string) (*Sk
 
 	client, err := mongo.Connect(ctx, clientOps)
 	if err != nil {
-		logger.MustDebug("error connection to mongo client")
+		logger.MustDebug(fmt.Sprintf("error connecting to mongo client, %s", err))
+		logger.MustDebug(fmt.Sprintf("error mongo db ops uri: %s", clientOps.GetURI()))
 		return nil, err
 	}
 
@@ -56,7 +57,7 @@ func (s SkillStore) FetchById(ctx context.Context, id int) (models.Modler, error
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		} else {
-			logger.MustDebug("error occurred while fetching skill by id")
+			logger.MustDebug(fmt.Sprintf("error occurred while fetching skill by id, %s", err))
 		}
 		return nil, err
 	}
@@ -81,9 +82,9 @@ func (s SkillStore) FetchByName(ctx context.Context, name string) (models.Modler
 
 func (s SkillStore) Fetch(ctx context.Context) ([]models.Modler, error) {
 	var skills []models.Modler
-	cur, err := s.collection.Find(ctx, nil)
+	cur, err := s.collection.Find(ctx, bson.M{})
 	if err != nil {
-		logger.MustDebug("error occurred while fetching skill")
+		logger.MustDebug(fmt.Sprintf("error occurred while fetching skill, %s", err))
 		return nil, err
 	}
 	defer cur.Close(ctx)

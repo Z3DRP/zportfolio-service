@@ -10,7 +10,7 @@ import (
 )
 
 const LogPrefix = "var/log"
-const LogName = "portfolio.log"
+const LogName = "logs.log"
 
 var logfile = zlg.NewLogFile(
 	zlg.WithFilename(fmt.Sprintf("%s/%s", LogPrefix, LogName)),
@@ -32,28 +32,31 @@ func NewLogger(lf *lumberjack.Logger, lvl string, jsonfmtr, reportCaller bool) *
 }
 
 type Configurations struct {
-	ZServer       ZServerConfig
-	DatabaseStore DbStoreConfig
+	ZServer       ZServerConfig `mapstructure:"zserver"`
+	DatabaseStore DbStoreConfig `mapstructure:"database"`
 }
 
 type ZServerConfig struct {
-	Address      string
-	ReadTimeout  int
-	WriteTimeout int
-	Static       string
+	Address      string `mapstructure:"address"`
+	ReadTimeout  int    `mapstructure:"readTimeout"`
+	WriteTimeout int    `mapstructure:"writeTimeout"`
 }
 
 type DbStoreConfig struct {
-	DbName string
-	DbUri  string
-	DbCol  string
+	DbName    string `mapstructure:"dbName"`
+	DbUri     string `mapstructure:"dbUri"`
+	ExpCol    string `mapstructure:"expCol"`
+	DetailCol string `mapstructure:"detailCol"`
+	SkillCol  string `mapstructure:"skillCol"`
+	DbUsr     string `mapstructure:"default"`
+	DbPwd     string `mapstructure:"dbPwd"`
 }
 
 func ReadServerConfig() (*ZServerConfig, error) {
+	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("./config")
 	viper.AutomaticEnv()
-	viper.SetConfigType("yml")
 	var configs Configurations
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -72,10 +75,10 @@ func ReadServerConfig() (*ZServerConfig, error) {
 }
 
 func ReadDbConfig() (*DbStoreConfig, error) {
+	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("./config")
 	viper.AutomaticEnv()
-	viper.SetConfigType("yml")
 	var configs Configurations
 
 	if err := viper.ReadInConfig(); err != nil {

@@ -76,12 +76,12 @@ func (d *DetailStore) FetchByName(ctx context.Context, name string) (models.Modl
 		return nil, err
 	}
 
-	return &details, nil
+	return details, nil
 }
 
 func (d *DetailStore) Fetch(ctx context.Context) ([]models.Modler, error) {
 	var details []models.Modler
-	cur, err := d.collection.Find(ctx, nil)
+	cur, err := d.collection.Find(ctx, bson.M{})
 	if err != nil {
 		logger.MustDebug("error occurred while fetching details")
 		return nil, err

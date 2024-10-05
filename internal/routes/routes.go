@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,7 +13,9 @@ import (
 
 	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/controller"
+	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
 	"github.com/Z3DRP/zportfolio-service/internal/middleware"
+	"github.com/Z3DRP/zportfolio-service/internal/models"
 	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
@@ -23,7 +26,7 @@ var logger = zlg.NewLogger(
 	logfile,
 	zlg.WithJsonFormatter(true),
 	zlg.WithLevel("trace"),
-	zlg.WithReportCaller(true),
+	zlg.WithReportCaller(false),
 )
 
 func NewServer() (*http.Server, error) {
@@ -35,14 +38,14 @@ func NewServer() (*http.Server, error) {
 
 	mux := http.NewServeMux()
 	// TODO add serverConfig to Mux
-	mux.HandleFunc("GET http://localhost:8081/about/", getAbout)
-	mux.HandleFunc("POST https://localhost:8081/zypher/", getZypher)
+	mux.HandleFunc("GET /about", getAbout)
+	mux.HandleFunc("POST /zypher", getZypher)
 
 	server := &http.Server{
 		Addr:         serverConfig.Address,
-		ReadTimeout:  time.Duration(serverConfig.ReadTimeout),
-		WriteTimeout: time.Duration(serverConfig.WriteTimeout),
-		Handler:      handlePanic(loggerMiddleware(contextMiddleware(mux, time.Duration(serverConfig.WriteTimeout)))),
+		ReadTimeout:  time.Second * time.Duration(serverConfig.ReadTimeout),
+		WriteTimeout: time.Second * time.Duration(serverConfig.WriteTimeout),
+		Handler:      handlePanic(loggerMiddleware(contextMiddleware(mux, 10*time.Second))),
 	}
 
 	return server, nil
@@ -112,40 +115,47 @@ func getZypher(w http.ResponseWriter, r *http.Request) {
 
 		shf, err := parseInt(shift)
 		if err != nil {
+			logger.MustDebug("invalid shift param")
 			http.Error(w, "invalid 'shift' parameter", http.StatusBadRequest)
 			return
 		}
 		shfCount, err := parseInt(shiftCount)
 		if err != nil {
+			logger.MustDebug("invalid shift count param")
 			http.Error(w, "invalid 'shiftCount' parameter", http.StatusBadRequest)
 			return
 		}
 		hshCount, err := parseInt(hashCount)
 		if err != nil {
+			logger.MustDebug("invalid hash count")
 			http.Error(w, "invalid 'hashCount' parameter", http.StatusBadRequest)
 			return
 		}
 
 		alt, err := parseBool(alternate)
 		if err != nil {
+			logger.MustDebug("invalid alternate param")
 			http.Error(w, "invalid 'alternate' parameter", http.StatusBadRequest)
 			return
 		}
 
 		ignSpace, err := parseBool(ignoreSpace)
 		if err != nil {
+			logger.MustDebug("invalid ignore space param")
 			http.Error(w, "invalid 'ignoreSpace' parameter", http.StatusBadRequest)
 			return
 		}
 
 		rstHsh, err := parseBool(restrictHashShift)
 		if err != nil {
+			logger.MustDebug("invalid restrict hash param")
 			http.Error(w, "invalid 'restrictHash' parameter", http.StatusBadRequest)
 			return
 		}
 		result, err := controller.CalculateZypher(txt, shf, shfCount, hshCount, *alt, *ignSpace, *rstHsh)
 		if err != nil {
-			http.Error(w, "error occured while calculating hash", http.StatusBadRequest)
+			logger.MustDebug(fmt.Sprintf("error occurred while calculating zypher: %s", err))
+			http.Error(w, "error occured while calculating hash", http.StatusInternalServerError)
 			return
 		}
 
@@ -159,6 +169,41 @@ func getZypher(w http.ResponseWriter, r *http.Request) {
 
 func getAbout(w http.ResponseWriter, r *http.Request) {
 	// TODO call getPortfolioData then check for and log any errors or return data
+	portfolioData, err := controller.GetPortfolioData(r.Context())
+	if err != nil {
+		if errors.Is(err, dacstore.ErrFetchSkill) {
+			logger.MustDebug(fmt.Sprintf("could not retrieve skill data, %s", err))
+			http.Error(w, "could not retrieve skill data", http.StatusInternalServerError)
+			return
+		} else if errors.Is(err, dacstore.ErrFetchExperience) {
+			logger.MustDebug(fmt.Sprintf("could not retrieve experience data, %s", err))
+			http.Error(w, "could not retrieve experience data", http.StatusInternalServerError)
+			return
+		} else if errors.Is(err, dacstore.ErrFetchDetails) {
+			logger.MustDebug(fmt.Sprintf("could not retrieve details data, %s", err))
+			http.Error(w, "could not retrieve details data", http.StatusInternalServerError)
+			return
+		}
+
+		logger.MustDebug(fmt.Sprintf("an unexpected error occurred while fetching portfolio data: %s", err))
+		http.Error(w, "an unexpecting error occurred while fetching data", http.StatusInternalServerError)
+		return
+	}
+
+	logger.MustDebug(fmt.Sprintf("respons data:: %v", portfolioData))
+	w.Header().Set("Content-Type", "application/json")
+	if pdata, ok := portfolioData.(*models.PortoflioResponse); ok {
+		if err := json.NewEncoder(w).Encode(pdata); err != nil {
+			logger.MustDebug(fmt.Sprintf("could not encode portfolio response: %s", err))
+			http.Error(w, "could not encode response", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		msg := fmt.Sprintf("could not cast type: [%T] into portfolio data", portfolioData)
+		logger.MustDebug(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
 }
 
 func parseInt(param string) (int, error) {
