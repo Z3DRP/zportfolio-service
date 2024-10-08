@@ -45,10 +45,20 @@ func NewServer() (*http.Server, error) {
 		Addr:         serverConfig.Address,
 		ReadTimeout:  time.Second * time.Duration(serverConfig.ReadTimeout),
 		WriteTimeout: time.Second * time.Duration(serverConfig.WriteTimeout),
-		Handler:      handlePanic(loggerMiddleware(contextMiddleware(mux, 10*time.Second))),
+		Handler:      handlePanic(loggerMiddleware(headerMiddleware(contextMiddleware(mux, 10*time.Second)))),
 	}
 
 	return server, nil
+}
+
+func headerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Headers", "Content-Type")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func contextMiddleware(next http.Handler, timeout time.Duration) http.Handler {
@@ -168,41 +178,47 @@ func getZypher(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAbout(w http.ResponseWriter, r *http.Request) {
-	// TODO call getPortfolioData then check for and log any errors or return data
-	portfolioData, err := controller.GetPortfolioData(r.Context())
-	if err != nil {
-		if errors.Is(err, dacstore.ErrFetchSkill) {
-			logger.MustDebug(fmt.Sprintf("could not retrieve skill data, %s", err))
-			http.Error(w, "could not retrieve skill data", http.StatusInternalServerError)
-			return
-		} else if errors.Is(err, dacstore.ErrFetchExperience) {
-			logger.MustDebug(fmt.Sprintf("could not retrieve experience data, %s", err))
-			http.Error(w, "could not retrieve experience data", http.StatusInternalServerError)
-			return
-		} else if errors.Is(err, dacstore.ErrFetchDetails) {
-			logger.MustDebug(fmt.Sprintf("could not retrieve details data, %s", err))
-			http.Error(w, "could not retrieve details data", http.StatusInternalServerError)
-			return
-		}
-
-		logger.MustDebug(fmt.Sprintf("an unexpected error occurred while fetching portfolio data: %s", err))
-		http.Error(w, "an unexpecting error occurred while fetching data", http.StatusInternalServerError)
-		return
-	}
-
-	logger.MustDebug(fmt.Sprintf("respons data:: %v", portfolioData))
 	w.Header().Set("Content-Type", "application/json")
-	if pdata, ok := portfolioData.(*models.PortoflioResponse); ok {
-		if err := json.NewEncoder(w).Encode(pdata); err != nil {
-			logger.MustDebug(fmt.Sprintf("could not encode portfolio response: %s", err))
-			http.Error(w, "could not encode response", http.StatusInternalServerError)
+	select {
+	case <-r.Context().Done():
+		logger.MustDebug(fmt.Sprintf("request: %s method: %s timed out", r.URL, r.Method))
+		http.Error(w, "request time out", http.StatusRequestTimeout)
+	default:
+		var portfolioData models.Responser
+		portfolioData, err := controller.GetPortfolioData(r.Context())
+		if err != nil {
+			if errors.Is(err, dacstore.ErrFetchSkill) {
+				logger.MustDebug(fmt.Sprintf("could not retrieve skill data, %s", err))
+				http.Error(w, "could not retrieve skill data", http.StatusInternalServerError)
+				return
+			} else if errors.Is(err, dacstore.ErrFetchExperience) {
+				logger.MustDebug(fmt.Sprintf("could not retrieve experience data, %s", err))
+				http.Error(w, "could not retrieve experience data", http.StatusInternalServerError)
+				return
+			} else if errors.Is(err, dacstore.ErrFetchDetails) {
+				logger.MustDebug(fmt.Sprintf("could not retrieve details data, %s", err))
+				http.Error(w, "could not retrieve details data", http.StatusInternalServerError)
+				return
+			}
+
+			logger.MustDebug(fmt.Sprintf("an unexpected error occurred while fetching portfolio data: %s", err))
+			http.Error(w, "an unexpecting error occurred while fetching data", http.StatusInternalServerError)
 			return
 		}
-	} else {
-		msg := fmt.Sprintf("could not cast type: [%T] into portfolio data", portfolioData)
-		logger.MustDebug(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
-		return
+
+		logger.MustDebug(fmt.Sprintf("respons data:: %v", portfolioData))
+		if pdata, ok := portfolioData.(*models.PortoflioResponse); ok {
+			if err := json.NewEncoder(w).Encode(pdata); err != nil {
+				logger.MustDebug(fmt.Sprintf("could not encode portfolio response: %s", err))
+				http.Error(w, "could not encode response", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			msg := fmt.Sprintf("could not cast type: [%T] into portfolio data", portfolioData)
+			logger.MustDebug(msg)
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
