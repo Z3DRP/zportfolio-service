@@ -72,7 +72,7 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		scheduleData, err = dacstore.CheckSchedule(r.Context(), periodStart, periodEnd)
+		scheduleData, err = dacstore.CheckScheduleData(r.Context(), periodStart, periodEnd)
 		var noResults *dacstore.ErrNoCacheResult
 
 		if err != nil {
@@ -94,7 +94,7 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			err = dacstore.SetSchedule(r.Context(), periodStart, periodEnd)
+			err = dacstore.SetScheduleData(r.Context(), periodStart, periodEnd)
 			if err != nil {
 				logger.MustDebug(fmt.Sprintf("an error occurred while cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err))
 				http.Error(w, fmt.Sprintf("could not cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err), http.StatusInternalServerError)

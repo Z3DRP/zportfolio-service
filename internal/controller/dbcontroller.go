@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
@@ -100,4 +101,15 @@ func GetPortfolioData(ctx context.Context) (models.Responser, error) {
 	}
 
 	return models.NewPortfolioResponse(details, xp, skills), nil
+}
+
+// TODO fetchSchedule and createTask, and getTasks
+// NOTE fetchSchedule will have to call all of the 'builder' methods to build out the hrly schedule and stuff
+
+func FetchSchedule(ctx context.Context, start, end time.Time) (models.Responser, error) {
+
+}
+
+func createTask(ctx context.Context, start, end time.Time, details string) (models.Responser, error) {
+
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/redis/go-redis/v9"
@@ -83,12 +84,11 @@ func CheckPortfolioData(ctx context.Context, client *redis.Client) (models.Respo
 
 	val, err := client.Get(ctx, "ZachPalmer").Result()
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error occurred while getting cache:: %v\n", err))
+		logger.MustDebug(fmt.Sprintf("error occurred while getting portfolio cache:: %v", err))
 		if err != redis.Nil {
-			logger.MustDebug(fmt.Sprintf("unexpected cache error:: %v\n", err))
+			logger.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
 			return nil, err
 		}
-		logger.MustDebug(fmt.Sprintf("key has not been set error: %v\n", err))
 		return nil, NewNoCacheResultErr(client.ClientID(ctx), "Zach Palmer", err)
 	}
 
@@ -101,7 +101,43 @@ func CheckPortfolioData(ctx context.Context, client *redis.Client) (models.Respo
 	var data models.PortfolioResponse
 	err = json.Unmarshal([]byte(val), &data)
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error unmarchalling data: %v", err))
+		logger.MustDebug(fmt.Sprintf("error unmarchalling portfolio data: %v", err))
+		return nil, err
+	}
+	return &data, nil
+}
+
+func SetScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time, data models.Schedule) error {
+	key := fmt.Sprintf("%v-%v", pstart.String(), pend.String())
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	err = client.Set(ctx, key, jsonData, 0).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time) (models.Responser, error) {
+	key := fmt.Sprintf("%v-%v", pstart.String(), pend.String())
+	val, err := client.Get(ctx, key).Result()
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error occurred while getting schedule cache:: %v", err))
+		if err != redis.Nil {
+			logger.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
+			return nil, err
+		}
+		return nil, NewNoCacheResultErr(client.ClientID(ctx), key, err)
+	}
+
+	var data models.ScheduleResponse
+	err = json.Unmarshal([]byte(val), &data)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error unmarshalling schedule data: %v", err))
 		return nil, err
 	}
 	return &data, nil
