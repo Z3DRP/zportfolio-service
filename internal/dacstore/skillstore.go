@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type SkillStore struct {
@@ -19,24 +18,9 @@ type SkillStore struct {
 func (s SkillStore) Client() *mongo.Client         { return s.client }
 func (s SkillStore) Collection() *mongo.Collection { return s.collection }
 
-func newSkillStore(ctx context.Context, uri, dbname, collectionName string) (*SkillStore, error) {
-	clientOps := options.Client().ApplyURI(uri)
-
-	client, err := mongo.Connect(ctx, clientOps)
-	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error connecting to mongo client, %s", err))
-		logger.MustDebug(fmt.Sprintf("error mongo db ops uri: %s", clientOps.GetURI()))
-		return nil, err
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		logger.MustDebug("could not ping mong client")
-		return nil, err
-	}
-
+func newSkillStore(client *mongo.Client, dbname, collectionName string) *SkillStore {
 	collection := client.Database(dbname).Collection(collectionName)
-	return &SkillStore{client: client, collection: collection}, nil
+	return &SkillStore{client: client, collection: collection}
 }
 
 func (s SkillStore) Insert(ctx context.Context, skl models.Skill) (primitive.ObjectID, error) {
@@ -55,10 +39,9 @@ func (s SkillStore) FetchById(ctx context.Context, id int) (models.Modler, error
 	err := s.collection.FindOne(ctx, filter).Decode(&skill)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		} else {
-			logger.MustDebug(fmt.Sprintf("error occurred while fetching skill by id, %s", err))
+			return nil, NewNoResultErr(string(id), "Skill", err)
 		}
+		logger.MustDebug(fmt.Sprintf("error occurred while fetching skill by id, %s", err))
 		return nil, err
 	}
 

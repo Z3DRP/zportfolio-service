@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ExperienceStore struct {
@@ -19,23 +18,9 @@ type ExperienceStore struct {
 func (e ExperienceStore) Client() *mongo.Client         { return e.client }
 func (e ExperienceStore) Collection() *mongo.Collection { return e.collection }
 
-func newExperienceStore(ctx context.Context, uri, dbName, collectionName string) (*ExperienceStore, error) {
-	clientOptions := options.Client().ApplyURI(uri)
-
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		logger.MustDebug("error connecting to mongo client")
-		return nil, err
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		logger.MustDebug("could not ping mongo client")
-		return nil, err
-	}
-
+func newExperienceStore(client *mongo.Client, dbName, collectionName string) *ExperienceStore {
 	collection := client.Database(dbName).Collection(collectionName)
-	return &ExperienceStore{client: client, collection: collection}, nil
+	return &ExperienceStore{client: client, collection: collection}
 }
 
 func (e *ExperienceStore) Insert(ctx context.Context, xp models.Experience) (primitive.ObjectID, error) {

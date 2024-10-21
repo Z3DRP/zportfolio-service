@@ -4,9 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
+	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
+
+var logfile = zlg.NewLogFile(
+	zlg.WithFilename(fmt.Sprintf("%v/%v", config.LogPrefix, "controller.log")),
+)
+var logger = config.NewLogger(logfile, "trace", true, false)
 
 func GetExperiences(ctx context.Context) ([]models.Experience, error) {
 	dbStore, err := dacstore.CreateExperienceStore(ctx)
@@ -32,8 +39,11 @@ func GetExperiences(ctx context.Context) ([]models.Experience, error) {
 
 func GetDetails(ctx context.Context) (models.Detail, error) {
 	dbStore, err := dacstore.CreateDetailStore(ctx)
+	logger.MustTrace(fmt.Sprintf("detail store created: %v", dbStore))
+
 	var detail models.Detail
 	if err != nil {
+		logger.MustTrace(fmt.Sprintf("error during detail store creation: %s", err))
 		return models.Detail{}, err
 	}
 

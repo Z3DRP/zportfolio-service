@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM --platform=linux/amd64 golang:1.23-bullseye AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -6,11 +6,12 @@ RUN go mod download
 COPY . .
 RUN go build -o ./bin/zportfolio-service ./cmd
 
+RUN GOOS=linux GOARCH=amd64 go build -o ./bin/zportfolio-service ./cmd
 
-FROM alpine:latest
+FROM --platform=linux/amd64 ubuntu:22.04
 
 ENV LOGLEVEL=debug
-RUN apk --no-cache add ca-certificates
+
 WORKDIR /app
 RUN mkdir -p /app/config
 COPY --from=builder /app/bin/zportfolio-service .

@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type DetailStore struct {
@@ -19,22 +18,10 @@ type DetailStore struct {
 func (d DetailStore) Client() *mongo.Client         { return d.client }
 func (d DetailStore) Collection() *mongo.Collection { return d.collection }
 
-func newDetailStore(ctx context.Context, uri, dbname, collectionName string) (*DetailStore, error) {
-	clientOps := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(ctx, clientOps)
-	if err != nil {
-		logger.MustDebug("error connecting to mongo client")
-		return nil, err
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		logger.MustDebug("could not ping mongo client")
-		return nil, err
-	}
-
+func newDetailStore(client *mongo.Client, dbname, collectionName string) *DetailStore {
 	collection := client.Database(dbname).Collection(collectionName)
-	return &DetailStore{client: client, collection: collection}, nil
+	logger.MustTrace(fmt.Sprintf("detail store being created::: client: %v; collection: %v, dbName: %s collectionName: %s", client, collection, dbname, collectionName))
+	return &DetailStore{client: client, collection: collection}
 }
 
 func (d *DetailStore) Insert(ctx context.Context, dt models.Detail) (primitive.ObjectID, error) {

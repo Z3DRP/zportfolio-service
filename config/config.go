@@ -40,16 +40,21 @@ type ZServerConfig struct {
 	Address      string `mapstructure:"address"`
 	ReadTimeout  int    `mapstructure:"readTimeout"`
 	WriteTimeout int    `mapstructure:"writeTimeout"`
+	Fchain       string `mapstructure:"fchain"`
+	Pkey         string `mapstructure:"pkey"`
 }
 
 type DbStoreConfig struct {
-	DbName    string `mapstructure:"dbName"`
-	DbUri     string `mapstructure:"dbUri"`
-	ExpCol    string `mapstructure:"expCol"`
-	DetailCol string `mapstructure:"detailCol"`
-	SkillCol  string `mapstructure:"skillCol"`
-	DbUsr     string `mapstructure:"default"`
-	DbPwd     string `mapstructure:"dbPwd"`
+	DbName          string `mapstructure:"dbName"`
+	DbUri           string `mapstructure:"dbUri"`
+	ExpCol          string `mapstructure:"expCol"`
+	DetailCol       string `mapstructure:"detailCol"`
+	SkillCol        string `mapstructure:"skillCol"`
+	PeriodCol       string `mapstructure:"periodCol"`
+	TaskCol         string `mapstructure:"taskCol"`
+	AvailabilityCol string `mapstructure:"availablityCol"`
+	DbUsr           string `mapstructure:"default"`
+	DbPwd           string `mapstructure:"dbPwd"`
 }
 
 func ReadServerConfig() (*ZServerConfig, error) {
@@ -94,4 +99,21 @@ func ReadDbConfig() (*DbStoreConfig, error) {
 		return nil, errors.New(emsg)
 	}
 	return &configs.DatabaseStore, nil
+}
+
+func IsValidOrigin(origin string) bool {
+	var isValid bool = false
+	switch origin {
+	case "http://localhost:3000":
+		isValid = true
+	case "https://localhost:3000":
+		isValid = true
+	case "http://zachpalmer.dev":
+		isValid = true
+	case "https://zachpalmer.dev":
+		isValid = true
+	default:
+		isValid = false
+	}
+	return isValid
 }

@@ -20,12 +20,22 @@ var logger = zlg.NewLogger(
 )
 
 func run() {
-	zserver, err := routes.NewServer()
+	var serverConfig, scfgErr = config.ReadServerConfig()
+	if scfgErr != nil {
+		logger.MustDebug(fmt.Sprintf("error parsing config file, %s", scfgErr))
+		// fmt.Errorf("error occured while reading config: %s", scfgErr)
+		return
+	}
+	zserver, err := routes.NewServer(*serverConfig)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("fatal error creating server: %s", err))
 		panic(err)
 	}
 
+	// err = http.ListenAndServeTLS(serverConfig.Address, serverConfig.Fchain, serverConfig.Pkey, nil)
+	// if err != nil {
+	// 	logger.MustDebug(fmt.Sprintf("could not start tls server: %s", err))
+	// }
 	if err := zserver.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.MustDebug(fmt.Sprintf("fatal server error: %s", err))
 	}
