@@ -55,6 +55,12 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		var scheduleData models.Responser
+		cacheClient, err := dacstore.NewRedisClient(r.Context())
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("cache error: %s", err))
+			http.Error(w, "request cache error", http.StatusInternalServerError)
+			return
+		}
 		// NOTE period data must be a iso string
 		pstart := r.URL.Query().Get("pstart")
 		pend := r.URL.Query().Get("pend")
@@ -72,7 +78,7 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		scheduleData, err = dacstore.CheckScheduleData(r.Context(), periodStart, periodEnd)
+		scheduleData, err = dacstore.CheckScheduleData(r.Context(), cacheClient, periodStart, periodEnd)
 		var noResults *dacstore.ErrNoCacheResult
 
 		if err != nil {
@@ -94,7 +100,10 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			err = dacstore.SetScheduleData(r.Context(), periodStart, periodEnd)
+			if scheduleData != nil {
+				err = dacstore.SetScheduleData(r.Context(), cacheClient, periodStart, periodEnd, scheduleData)
+			}
+
 			if err != nil {
 				logger.MustDebug(fmt.Sprintf("an error occurred while cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err))
 				http.Error(w, fmt.Sprintf("could not cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err), http.StatusInternalServerError)
@@ -200,7 +209,6 @@ func getAbout(w http.ResponseWriter, r *http.Request) {
 	default:
 		var portfolioData models.Responser
 		cacheClient, err := dacstore.NewRedisClient(r.Context())
-		logger.MustTrace(fmt.Sprintf("cache client created..: %v", cacheClient))
 
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("cache error: %s", err))

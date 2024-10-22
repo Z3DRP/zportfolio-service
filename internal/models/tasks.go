@@ -16,6 +16,18 @@ type Task struct {
 
 type Tasklist []Task
 
+func NewTask(start, end time.Time, details string) *Task {
+	return &Task{
+		StartTime: start,
+		EndTime:   end,
+		Detail:    details,
+	}
+}
+
+func (t Task) ViewAttr() string {
+	return fmt.Sprintf("Task: {Id: %v, Start: %v, End: %v, Detail: %v}", t.Id, t.StartTime.String(), t.EndTime.String(), t.Detail)
+}
+
 func (t *Task) Date() string {
 	yr, month, day := t.StartTime.Date()
 	return fmt.Sprintf("%v-%v-%v", day, month, yr)

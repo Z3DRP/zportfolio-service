@@ -13,6 +13,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type ErrFailedInsert struct {
+	Stype   string
+	Details string
+	Err     error
+}
+
+func (fi *ErrFailedInsert) Error() string {
+	return fmt.Sprintf("failed to insert record: %v{%v}:: %v", fi.Stype, fi.Details, fi.Err)
+}
+
+func (fi *ErrFailedInsert) Unwrap() error {
+	return fi.Err
+}
+
 type ErrNoResults struct {
 	Identifier string
 	Object     string
@@ -53,6 +67,8 @@ var mongoClientOnce sync.Once
 var ErrFetchSkill = fmt.Errorf("an error occured while fetching skills")
 var ErrFetchExperience = fmt.Errorf("an error occured while fetching experience")
 var ErrFetchDetails = fmt.Errorf("an error occured while fetching details")
+var ErrFetchTask = fmt.Errorf("an error occurred while fetching tasks")
+var ErrFetchAvailability = fmt.Errorf("an error occurred while fetching availability")
 var errMongoConn = fmt.Errorf("could not create connection to mongo cluster")
 
 // TODO add an storeErr file to package and move errors there and make error for config err
@@ -107,6 +123,32 @@ func CreateSkillStore(ctx context.Context) (*SkillStore, error) {
 		return nil, fmt.Errorf("%s: %w", errMongoConn, err)
 	}
 	return newSkillStore(mc, dbConfig.DbName, dbConfig.SkillCol), nil
+}
+
+func CreateTaskStore(ctx context.Context) (*TaskStore, error) {
+	if cfgErr != nil {
+		logger.MustDebug(fmt.Sprintf("config error stopped task store creation:: %v", cfgErr))
+		return nil, fmt.Errorf("config error stopped task store creation")
+	}
+
+	mc, err := initializeMongoConnection(ctx, dbConfig.DbUri)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errMongoConn, err)
+	}
+	return newTaskStore(mc, dbConfig.DbName, dbConfig.TaskCol), nil
+}
+
+func CreateAvailabilityStore(ctx context.Context) (*AvailabilityStore, error) {
+	if cfgErr != nil {
+		logger.MustDebug(fmt.Sprintf("config error stopped availability store creation:: %v", cfgErr))
+		return nil, fmt.Errorf("config error stopped availability store creation")
+	}
+
+	mc, err := initializeMongoConnection(ctx, dbConfig.DbUri)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errMongoConn, err)
+	}
+	return newAvailabilityStore(mc, dbConfig.DbName, dbConfig.AvailabilityCol), nil
 }
 
 func CreatePeriodStore(ctx context.Context) (*PeriodStore, error) {

@@ -84,19 +84,19 @@ func GetSkills(ctx context.Context) ([]models.Skill, error) {
 func GetPortfolioData(ctx context.Context) (models.Responser, error) {
 	skills, err := GetSkills(ctx)
 	if err != nil {
-		skillErr := fmt.Errorf("%w: %s", dacstore.ErrFetchSkill, err)
+		skillErr := fmt.Errorf("%s: %w", dacstore.ErrFetchSkill, err)
 		return nil, skillErr
 	}
 
 	xp, err := GetExperiences(ctx)
 	if err != nil {
-		xpErr := fmt.Errorf("%w: %s", dacstore.ErrFetchExperience, err)
+		xpErr := fmt.Errorf("%s: %w", dacstore.ErrFetchExperience, err)
 		return nil, xpErr
 	}
 
 	details, err := GetDetails(ctx)
 	if err != nil {
-		detailErr := fmt.Errorf("%w: %s", dacstore.ErrFetchDetails, err)
+		detailErr := fmt.Errorf("%s: %w", dacstore.ErrFetchDetails, err)
 		return nil, detailErr
 	}
 
@@ -107,9 +107,49 @@ func GetPortfolioData(ctx context.Context) (models.Responser, error) {
 // NOTE fetchSchedule will have to call all of the 'builder' methods to build out the hrly schedule and stuff
 
 func FetchSchedule(ctx context.Context, start, end time.Time) (models.Responser, error) {
+	tskStore, err := dacstore.CreateTaskStore(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create task store:: %v", err)
+	}
 
+	avbStore, err := dacstore.CreateAvailabilityStore(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create availability store:: %v", err)
+	}
+
+	tasks, err := tskStore.FetchTaskInPeriod(ctx, start, end)
+	if err != nil {
+		taskErr := fmt.Errorf("%s: %w", dacstore.ErrFetchTask, err)
+		return nil, taskErr
+	}
+
+	avabils, err := avbStore.FetchByNewest(ctx)
+	if err != nil {
+		avbErr := fmt.Errorf("%s, %w", dacstore.ErrFetchAvailability, err)
+		return nil, avbErr
+	}
+
+	//TODO add something to catch any panics hear
+	schedule := models.NewSchedule(avabils, tasks)
+	return models.NewScheduleResponse(*models.NewPeriod(5, 1, start, end, true), schedule), nil
 }
 
-func createTask(ctx context.Context, start, end time.Time, details string) (models.Responser, error) {
+func CreateTask(ctx context.Context, start, end time.Time, details string) (models.Responser, error) {
+	tskStore, err := dacstore.CreateTaskStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error creating task store: %v", err))
+		return nil, fmt.Errorf("failed to create task store:: %w", err)
+	}
 
+	task := models.NewTask(start, end, details)
+	result, err := tskStore.Insert(ctx, *task)
+
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error inserting new Task{start: %v, end: %v, details: %v}", start, end, details))
+		insertErr := dacstore.ErrFailedInsert{Stype: "Task", Details: fmt.Sprintf("start: %v, end: %v, details: %v", start, end, details), Err: err}
+		return nil, &insertErr
+	}
+
+	task.Id = result
+	return models.NewTaskInsertResponse(result, task), nil
 }

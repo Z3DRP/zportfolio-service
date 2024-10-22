@@ -107,7 +107,7 @@ func CheckPortfolioData(ctx context.Context, client *redis.Client) (models.Respo
 	return &data, nil
 }
 
-func SetScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time, data models.Schedule) error {
+func SetScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time, data models.Responser) error {
 	key := fmt.Sprintf("%v-%v", pstart.String(), pend.String())
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -122,7 +122,7 @@ func SetScheduleData(ctx context.Context, client *redis.Client, pstart, pend tim
 	return nil
 }
 
-func GetScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time) (models.Responser, error) {
+func CheckScheduleData(ctx context.Context, client *redis.Client, pstart, pend time.Time) (models.Responser, error) {
 	key := fmt.Sprintf("%v-%v", pstart.String(), pend.String())
 	val, err := client.Get(ctx, key).Result()
 	if err != nil {

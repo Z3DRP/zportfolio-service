@@ -1,6 +1,10 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type Responser interface {
 	PrintRes() string
@@ -26,10 +30,10 @@ func NewPortfolioResponse(d Detail, e []Experience, s []Skill) *PortfolioRespons
 
 type ScheduleResponse struct {
 	CurrentPeriod Period
-	Agenda        Schedule
+	Agenda        *Schedule
 }
 
-func NewScheduleResponse(curPeriod Period, sched Schedule) *ScheduleResponse {
+func NewScheduleResponse(curPeriod Period, sched *Schedule) *ScheduleResponse {
 	return &ScheduleResponse{
 		CurrentPeriod: curPeriod,
 		Agenda:        sched,
@@ -38,4 +42,20 @@ func NewScheduleResponse(curPeriod Period, sched Schedule) *ScheduleResponse {
 
 func (sr *ScheduleResponse) PrintRes() string {
 	return fmt.Sprintf("CurrentPeriod: %v, Agenda: %v", sr.CurrentPeriod, sr.Agenda.Agenda)
+}
+
+type TaskInsertResponse struct {
+	Result primitive.ObjectID
+	NwTask *Task
+}
+
+func NewTaskInsertResponse(res primitive.ObjectID, tsk *Task) *TaskInsertResponse {
+	return &TaskInsertResponse{
+		Result: res,
+		NwTask: tsk,
+	}
+}
+
+func (tr *TaskInsertResponse) PrintRes() string {
+	return fmt.Sprintf("Result: %v, Task: %v, Timestamp: %v", tr.Result, tr.NwTask, tr.Result.Timestamp())
 }

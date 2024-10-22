@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -23,20 +24,24 @@ func (p PeriodType) Eindex() int {
 }
 
 type Period struct {
-	Id       primitive.ObjectID `bson:"_id,omitempty"`
-	Length   int                `bson:"length"`
-	Type     PeriodType         `bson:"type"`
-	IsActive bool               `bson:"is_active"`
+	Id        primitive.ObjectID `bson:"_id,omitempty"`
+	StartDate time.Time          `bson:"start_date"`
+	EndDate   time.Time          `bson:"end_date"`
+	Length    int                `bson:"length"`
+	Type      PeriodType         `bson:"type"`
+	IsActive  bool               `bson:"is_active"`
 }
 
-func NewPeriod(length int, ptype PeriodType, active bool) *Period {
+func NewPeriod(length int, ptype PeriodType, start, end time.Time, active bool) *Period {
 	return &Period{
-		Length:   length,
-		Type:     ptype,
-		IsActive: active,
+		StartDate: start,
+		EndDate:   end,
+		Length:    length,
+		Type:      ptype,
+		IsActive:  active,
 	}
 }
 
 func (p Period) ViewAttr() string {
-	return fmt.Sprintf("length: %v, type: %v", p.Length, p.Type)
+	return fmt.Sprintf("start: %v, end: %v, length: %v, type: %v", p.StartDate, p.EndDate, p.Length, p.Type)
 }

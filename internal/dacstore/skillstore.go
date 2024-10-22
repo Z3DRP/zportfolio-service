@@ -26,8 +26,8 @@ func newSkillStore(client *mongo.Client, dbname, collectionName string) *SkillSt
 func (s SkillStore) Insert(ctx context.Context, skl models.Skill) (primitive.ObjectID, error) {
 	result, err := s.collection.InsertOne(ctx, skl)
 	if err != nil {
-		insertErr := fmt.Errorf("error inserting record, %w", err)
-		logger.MustDebug("inserting skill failed")
+		insertErr := fmt.Errorf("error inserting Skill record, %w", err)
+		logger.MustDebug(fmt.Sprintf("inserting Skill record failed, %v", err))
 		return primitive.NilObjectID, insertErr
 	}
 	return result.InsertedID.(primitive.ObjectID), nil
@@ -82,7 +82,7 @@ func (s SkillStore) Fetch(ctx context.Context) ([]models.Modler, error) {
 	}
 
 	if err := cur.Err(); err != nil {
-		logger.MustDebug("error occurred with cursor")
+		logger.MustDebug(fmt.Sprintf("error occurred with skill cursor", err))
 		return nil, err
 	}
 	return skills, nil
