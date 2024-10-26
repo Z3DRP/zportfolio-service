@@ -32,8 +32,9 @@ func NewLogger(lf *lumberjack.Logger, lvl string, jsonfmtr, reportCaller bool) *
 }
 
 type Configurations struct {
-	ZServer       ZServerConfig `mapstructure:"zserver"`
-	DatabaseStore DbStoreConfig `mapstructure:"database"`
+	ZServer        ZServerConfig `mapstructure:"zserver"`
+	DatabaseStore  DbStoreConfig `mapstructure:"database"`
+	ZypherSettings ZypherConfig  `mapstructure:"zysettings"`
 }
 
 type ZServerConfig struct {
@@ -55,6 +56,15 @@ type DbStoreConfig struct {
 	AvailabilityCol string `mapstructure:"availablityCol"`
 	DbUsr           string `mapstructure:"default"`
 	DbPwd           string `mapstructure:"dbPwd"`
+}
+
+type ZypherConfig struct {
+	Shift        int  `mapstructure:"shift"`
+	ShiftCount   int  `mapstructure:"shiftCount"`
+	HashCount    int  `mapstructure:"hashCount"`
+	Alternate    bool `mapstructure:"alternate"`
+	IgnSpace     bool `mapstructure:"ignSpace"`
+	RestrictHash bool `mapstructure:"restrictHash"`
 }
 
 func ReadServerConfig() (*ZServerConfig, error) {
@@ -99,6 +109,28 @@ func ReadDbConfig() (*DbStoreConfig, error) {
 		return nil, errors.New(emsg)
 	}
 	return &configs.DatabaseStore, nil
+}
+
+func ReadZypherSettings() (*ZypherConfig, error) {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./config")
+	viper.AutomaticEnv()
+	var configs Configurations
+
+	if err := viper.ReadInConfig(); err != nil {
+		emsg := fmt.Sprintf("error reading config file, %v", err)
+		logger.MustDebug(emsg)
+		return nil, errors.New(emsg)
+	}
+
+	err := viper.Unmarshal(&configs)
+	if err != nil {
+		emsg := fmt.Sprintf("unable to decode config to json:: %v", err)
+		logger.MustDebug(emsg)
+		return nil, errors.New(emsg)
+	}
+	return &configs.ZypherSettings, nil
 }
 
 func IsValidOrigin(origin string) bool {

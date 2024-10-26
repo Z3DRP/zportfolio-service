@@ -142,3 +142,25 @@ func CheckScheduleData(ctx context.Context, client *redis.Client, pstart, pend t
 	}
 	return &data, nil
 }
+
+func SetUserData(ctx context.Context, client *redis.Client, k, val string) error {
+	err := client.Set(ctx, k, val, 0).Err()
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error caching user data:: %v", err))
+		return fmt.Errorf("error caching user data:: %w", err)
+	}
+	return nil
+}
+
+func CheckUserData(ctx context.Context, client *redis.Client, k string) (string, error) {
+	val, err := client.Get(ctx, k).Result()
+	if err != nil {
+		if err != redis.Nil {
+			logger.MustDebug(fmt.Sprintf("unexpected user cache error:: %v", err))
+			return "", fmt.Errorf("unexpected user cache error:: %w", err)
+		}
+		return "", NewNoCacheResultErr(client.ClientID(ctx), k, err)
+	}
+
+	return val, nil
+}

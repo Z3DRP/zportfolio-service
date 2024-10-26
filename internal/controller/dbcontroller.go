@@ -8,6 +8,7 @@ import (
 	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
+	"github.com/Z3DRP/zportfolio-service/internal/utils"
 	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
@@ -134,14 +135,20 @@ func FetchSchedule(ctx context.Context, start, end time.Time) (models.Responser,
 	return models.NewScheduleResponse(*models.NewPeriod(5, 1, start, end, true), schedule), nil
 }
 
-func CreateTask(ctx context.Context, start, end time.Time, details string) (models.Responser, error) {
+func CreateTask(ctx context.Context, start, end time.Time, details string, usrId string) (models.Responser, error) {
 	tskStore, err := dacstore.CreateTaskStore(ctx)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("error creating task store: %v", err))
 		return nil, fmt.Errorf("failed to create task store:: %w", err)
 	}
 
-	task := models.NewTask(start, end, details)
+	tid, err := utils.GenerateTID()
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("failed to generate TID:: %v", err))
+		return nil, fmt.Errorf("failed to generate TID:: %v", err)
+	}
+
+	task := models.BuildTask(models.WithTimes(start, end), models.WithDetail(details), models.WithUser(usrId), models.WithTid(tid))
 	result, err := tskStore.Insert(ctx, *task)
 
 	if err != nil {

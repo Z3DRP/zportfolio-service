@@ -16,6 +16,7 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
 	"github.com/Z3DRP/zportfolio-service/internal/middleware"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
+	"github.com/Z3DRP/zportfolio-service/internal/utils"
 	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
@@ -127,7 +128,47 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func createTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	select {
+	case <-r.Context().Done():
+		logger.MustDebug(fmt.Sprintf("request: %s method: %s timed out", r.URL, r.Method))
+		http.Error(w, "request time out", http.StatusRequestTimeout)
+		return
+	default:
+		// var tsk map[string]interface{}
+		tsk := models.TaskRequest{}
+		settings, err := config.ReadZypherSettings()
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
+			http.Error(w, fmt.Sprintf("an error occurred while reading zypher config:: %v", err), http.StatusInternalServerError)
+			return
+		}
 
+		err = json.NewDecoder(r.Body).Decode(&tsk)
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("could not parse request body:: %v", err))
+			http.Error(w, fmt.Sprintf("could not parse request body:: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		taskStart, err := time.Parse(time.RFC3339, tsk.Start)
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("invalid type for task start date:: %v", err))
+			http.Error(w, fmt.Sprintf("invalid type for task start date:: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		taskEnd, err := time.Parse(time.RFC3339, tsk.End)
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("invalid type for task end date:: %v", err))
+			http.Error(w, fmt.Sprintf("invalid type for task end date:: %v", err), http.StatusBadRequest)
+			return
+		}
+		uip := utils.GetIP(r)
+		uid, err := controller.CalculateZypher(utils.GetIP(r), settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
+		// add user to cache so when trying to edit tasks id can be checked
+
+	}
 }
 
 func getZypher(w http.ResponseWriter, r *http.Request) {

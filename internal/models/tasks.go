@@ -12,6 +12,8 @@ type Task struct {
 	StartTime time.Time          `bson:"start_time"`
 	EndTime   time.Time          `bson:"end_time"`
 	Detail    string             `bson:"detail"`
+	Tid       string             `bson:"tid"`
+	User      string             `bson:"user"`
 }
 
 type Tasklist []Task
@@ -24,8 +26,41 @@ func NewTask(start, end time.Time, details string) *Task {
 	}
 }
 
+func BuildTask(ops ...func(*Task)) *Task {
+	tsk := Task{}
+	for _, op := range ops {
+		op(&tsk)
+	}
+	return &tsk
+}
+
 func (t Task) ViewAttr() string {
 	return fmt.Sprintf("Task: {Id: %v, Start: %v, End: %v, Detail: %v}", t.Id, t.StartTime.String(), t.EndTime.String(), t.Detail)
+}
+
+func WithTimes(start, end time.Time) func(*Task) {
+	return func(t *Task) {
+		t.StartTime = start
+		t.EndTime = end
+	}
+}
+
+func WithDetail(d string) func(*Task) {
+	return func(t *Task) {
+		t.Detail = d
+	}
+}
+
+func WithTid(tid string) func(*Task) {
+	return func(t *Task) {
+		t.Tid = tid
+	}
+}
+
+func WithUser(uid string) func(*Task) {
+	return func(t *Task) {
+		t.User = uid
+	}
 }
 
 func (t *Task) Date() string {
@@ -74,4 +109,10 @@ func (t *Task) TaskDayKey() string {
 
 func (t *Task) TaskHrKey() int {
 	return t.StartTime.Hour()
+}
+
+type TaskRequest struct {
+	Start  string
+	End    string
+	Detail string
 }
