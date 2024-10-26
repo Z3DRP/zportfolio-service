@@ -1,4 +1,4 @@
-#Zach Palmer Portfolio
+##Zach Palmer Portfolio
 
 This is my portfolio app, it is basically an online version of my resume. My idea is to have this be the landing page
 for a web app that is made up of smaller projects of mine. Currently on the portfolio page, I talk about myself, my experience,
@@ -16,11 +16,17 @@ First download docker then pull the image for the service from zdev19/portfolio-
 on your local machine. Then you will be able to send requests via postman to the service.
 
 The Zypher expects the following url qeury parameters:
- *txt* - the plaintext to be encrypted
- *shft* - determines how many characters a given character in the plaintext should be shifted
- *shftcount* - determines the number of times the plaintext is iterated over and shifted
- *hshcount* - determines how many times the plaintext is hashed, hashing happens after the text has been cyphered
- *alt* - flag to alternate the shift direction, if true will alternate shifting character +x and -x
- *ignspace* - flag to either keep spaces or encrypt them
- *restricthash* - flag to keep characters within hex values
+ ** *txt* ** - the plaintext to be encrypted
+ ** *shft* ** - determines how many characters a given character in the plaintext should be shifted
+ ** *shftcount* ** - determines the number of times the plaintext is iterated over and shifted
+ ** *hshcount* ** - determines how many times the plaintext is hashed, hashing happens after the text has been cyphered
+ ** *alt* ** -flag to alternate the shift direction, if true will alternate shifting character +x and -x
+ ** *ignspace* **- flag to either keep spaces or encrypt them
+ ** *restricthash* ** - flag to keep characters within hex values
+
+
+ ## Contributing
+
+ clone the repo
+ 
  
