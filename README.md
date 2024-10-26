@@ -23,3 +23,4 @@ The Zypher expects the following url qeury parameters:
  *alt* - flag to alternate the shift direction, if true will alternate shifting character +x and -x
  *ignspace* - flag to either keep spaces or encrypt them
  *restricthash* - flag to keep characters within hex values
+ 
