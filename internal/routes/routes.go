@@ -31,11 +31,14 @@ var logger = zlg.NewLogger(
 )
 
 func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
+	// TODO refactore routes and dacstores so routes and controller so controller checks the cache and
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /about", getAbout)
 	mux.HandleFunc("POST /zypher", getZypher)
 	mux.HandleFunc("GET /schedule", getSchedule)
 	mux.HandleFunc("POST /task", createTask)
+	mux.HandleFunc("PUT /task", editTask)
+	mux.HandleFunc("DELETE /task", removeTask)
 
 	server := &http.Server{
 		Addr:         sconfig.Address,
@@ -144,6 +147,13 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		cacheClient, err := dacstore.NewRedisClient(r.Context())
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("could not connect to redis:: %v", err))
+			http.Error(w, fmt.Sprintf("could not connect to redis:: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		err = json.NewDecoder(r.Body).Decode(&tsk)
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("could not parse request body:: %v", err))
@@ -164,11 +174,108 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("invalid type for task end date:: %v", err), http.StatusBadRequest)
 			return
 		}
+
 		uip := utils.GetIP(r)
-		uid, err := controller.CalculateZypher(utils.GetIP(r), settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
-		// add user to cache so when trying to edit tasks id can be checked
+		uid, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
+		var noResults *dacstore.ErrNoCacheResult
+
+		if err != nil {
+			if !errors.As(err, &noResults) {
+				logger.MustDebug(fmt.Sprintf("error occurred while reading user cache:: %v", err))
+				http.Error(w, fmt.Sprintf("error occurred while reading user cache:: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if uid == "" {
+			uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
+			// add user to cache so when trying to edit tasks id can be checked
+			if err != nil {
+				logger.MustDebug(fmt.Sprintf("could not generate user id:: %v", err))
+				http.Error(w, fmt.Sprintf("could not generate user id:: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			if err = dacstore.SetUserData(r.Context(), cacheClient, uip, uid); err != nil {
+				logger.MustDebug(fmt.Sprintf("error occurred while creating user cache:: %v", err))
+				http.Error(w, fmt.Sprintf("error occurred while creating user cache:: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		nwTask, err := controller.CreateTask(r.Context(), taskStart, taskEnd, tsk.Detail, uid)
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("error occurred while usr: %v tried creating task:: %v", uid, err))
+			http.Error(w, fmt.Sprintf("error occurred while usr: %v tried creating task:: %v", uid, err), http.StatusInternalServerError)
+			return
+		}
+
+		if tskRes, ok := nwTask.(*models.TaskInsertResponse); ok {
+			if err := json.NewEncoder(w).Encode(tskRes); err != nil {
+				logger.MustDebug(fmt.Sprintf("could not encode task response into json:: %v", err))
+				http.Error(w, fmt.Sprintf("could not encode task response into json:: %v", err), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err))
+			http.Error(w, fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func removeTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	select {
+	case <-r.Context().Done():
+		logger.MustDebug(fmt.Sprintf("request: %s, method: %s, timed out", r.URL, r.Method))
+		http.Error(w, "request time out", http.StatusRequestTimeout)
+		return
+	default:
+		tskId := r.URL.Query().Get("taskid")
+		if tskId == "" {
+			logger.MustDebug("invalid task delete request:: Missing task id")
+			http.Error(w, "invalid task delete request:: Missing task id", http.StatusBadRequest)
+			return
+		}
+
+		if cacheClient, err := dacstore.NewRedisClient(r.Context()); err != nil {
+			logger.MustDebug(fmt.Sprintf("could not connect to redis client:: %v", err))
+			http.Error(w, fmt.Sprintf("could not connect to redis client:: %v", err), http.StatusInternalServerError)
+			return
+		} else {
+			uid, err := dacstore.CheckUserData(r.Context(), cacheClient, utils.GetIP(r))
+			if err != nil {
+				logger.MustDebug(fmt.Sprintf("error checking user cache:: %v", err))
+				http.Error(w, fmt.Sprintf("error checking user cache:: %v", err), http.StatusInternalServerError)
+				return
+			}
+			if uid == "" {
+				logger.MustDebug(fmt.Sprintf("invalid user id:: %v", uid))
+				http.Error(w, fmt.Sprintf("invalid user id:: %v", uid), http.StatusBadRequest)
+				return
+			}
+
+			delCount, err := controller.RemoveTask(r.Context(), tskId, uid)
+			if err != nil {
+				logger.MustDebug(fmt.Sprintf("error deleting task:: %v", err))
+				http.Error(w, fmt.Sprintf("error deleting task:: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			response := map[string]int64{
+				"deleteCount": delCount,
+			}
+			json.NewEncoder(w).Encode(response)
+		}
 
 	}
+}
+
+func editTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 }
 
 func getZypher(w http.ResponseWriter, r *http.Request) {
@@ -300,7 +407,6 @@ func getAbout(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		logger.MustDebug(fmt.Sprintf("respons data:: %v", portfolioData))
 		if pdata, ok := portfolioData.(*models.PortfolioResponse); ok {
 			// json.NewEncoder writes the data to request or errors
 			if err := json.NewEncoder(w).Encode(pdata); err != nil {

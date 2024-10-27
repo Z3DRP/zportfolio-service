@@ -54,7 +54,7 @@ func (s SkillStore) FetchByName(ctx context.Context, name string) (models.Modler
 	err := s.collection.FindOne(ctx, filter).Decode(&skill)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, nil
+			return nil, NewNoResultErr(name, "skill", err)
 		}
 		logger.MustDebug("error occurred while fetching skill by name")
 		return nil, err

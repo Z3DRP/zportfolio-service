@@ -92,7 +92,7 @@ func (t *Task) FormattedDate() string {
 	return fmt.Sprintf("%v, %v %v, %v", t.WeekDayName(), t.MonthName(), t.Day(), t.Yr())
 }
 
-func (t *Task) FormattedTime() string {
+func (t Task) FormattedTime() string {
 	return fmt.Sprintf("%v:%v - %v:%v", t.StartTime.Hour(), t.StartTime.Minute(), t.EndTime.Hour(), t.EndTime.Minute())
 }
 

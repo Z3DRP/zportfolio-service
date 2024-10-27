@@ -63,3 +63,45 @@ func (t TaskStore) FetchTaskInPeriod(ctx context.Context, start, end time.Time) 
 	}
 	return tasks, nil
 }
+
+func (t TaskStore) FetchTask(ctx context.Context, tid string) (models.Modler, error) {
+	var task models.Task
+	filter := bson.M{"tid": tid}
+	err := t.collection.FindOne(ctx, filter).Decode(&task)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, NewNoResultErr(tid, "skill", err)
+		}
+		return nil, err
+	}
+	return &task, nil
+}
+
+func (t TaskStore) UpdateTask(ctx context.Context, tid string, tsk *models.Task) (int64, int64, error) {
+	filter := bson.M{"tid": tid}
+	update := bson.D{{
+		Key: "$set",
+		Value: bson.M{
+			"start_time": tsk.StartTime,
+			"end_time":   tsk.EndTime,
+			"detail":     tsk.Detail,
+		},
+	}}
+
+	result, err := t.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return result.MatchedCount, result.ModifiedCount, nil
+}
+
+func (t TaskStore) DeleteTask(ctx context.Context, tid string) (int64, error) {
+	filter := bson.M{"tid": tid}
+	result, err := t.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.DeletedCount, nil
+}

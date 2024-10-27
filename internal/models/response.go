@@ -44,6 +44,20 @@ func (sr *ScheduleResponse) PrintRes() string {
 	return fmt.Sprintf("CurrentPeriod: %v, Agenda: %v", sr.CurrentPeriod, sr.Agenda.Agenda)
 }
 
+type TaskResponse struct {
+	Task Task
+}
+
+func NewTaskResponse(t Task) *TaskResponse {
+	return &TaskResponse{
+		Task: t,
+	}
+}
+
+func (tr *TaskResponse) PrintRes() string {
+	return fmt.Sprintf("Task {id: %v, tid: %v, usr: %v, start: %v, end: %v, detail: %v}", tr.Task.Id, tr.Task.Tid, tr.Task.User, tr.Task.StartTime, tr.Task.EndTime, tr.Task.Detail)
+}
+
 type TaskInsertResponse struct {
 	Result primitive.ObjectID
 	NwTask *Task
@@ -58,4 +72,22 @@ func NewTaskInsertResponse(res primitive.ObjectID, tsk *Task) *TaskInsertRespons
 
 func (tr *TaskInsertResponse) PrintRes() string {
 	return fmt.Sprintf("Result: %v, Task: %v, Timestamp: %v", tr.Result, tr.NwTask, tr.Result.Timestamp())
+}
+
+type TaskEditResponse struct {
+	MatchedCount int64
+	UpdatedCount int64
+	Task         Task
+}
+
+func NewTaskEditResponse(mcount, ucount int64, tsk Task) *TaskEditResponse {
+	return &TaskEditResponse{
+		MatchedCount: mcount,
+		UpdatedCount: ucount,
+		Task:         tsk,
+	}
+}
+
+func (tr *TaskEditResponse) PrintRes() string {
+	return fmt.Sprintf("Task {id: %v, tid: %v, usr: %v, start: %v, end: %v, detail: %v}", tr.Task.Id, tr.Task.Tid, tr.Task.User, tr.Task.StartTime, tr.Task.EndTime, tr.Task.Detail)
 }

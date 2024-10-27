@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -159,4 +160,103 @@ func CreateTask(ctx context.Context, start, end time.Time, details string, usrId
 
 	task.Id = result
 	return models.NewTaskInsertResponse(result, task), nil
+}
+
+func FetchTask(ctx context.Context, taskId string) (models.Responser, error) {
+	tskStore, err := dacstore.CreateTaskStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error creating task store:: %v", err))
+		return nil, fmt.Errorf("failed to create task store:: %w", err)
+	}
+
+	task, err := tskStore.FetchTask(ctx, taskId)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error fetching task:: %v", err))
+		return nil, fmt.Errorf("error fetching task:: %v", err)
+	}
+
+	if t, ok := task.(models.Task); ok {
+		return models.NewTaskResponse(t), nil
+	}
+	return nil, fmt.Errorf("could not cast Type[%T] as task response:: %w", task, err)
+}
+
+func EditTask(ctx context.Context, tid, uid string, start, end time.Time, detail string) (models.Responser, error) {
+	tskStore, err := dacstore.CreateTaskStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error creating task store:: %v", err))
+		return nil, fmt.Errorf("failed to create task store:: %w", err)
+	}
+
+	task, err := tskStore.FetchTask(ctx, tid)
+	if err != nil {
+		var noResults *dacstore.ErrNoCacheResult
+		if errors.As(err, &noResults) {
+			logger.MustDebug(fmt.Sprintf("could not find task with ID: %v", tid))
+			return nil, fmt.Errorf("could not find task with ID: %v", tid)
+		}
+		logger.MustDebug(fmt.Sprintf("could not read task for update:: %v", err))
+		return nil, fmt.Errorf("could not read task for update:: %v", err)
+
+	}
+
+	if tsk, ok := task.(models.Task); ok {
+		if tsk.User != uid {
+			logger.MustDebug("update action not allowed user must own task")
+			return nil, fmt.Errorf("action not allowed user must own task")
+		}
+	} else {
+		logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task for update", task))
+		return nil, fmt.Errorf("could not cast Type[%T] as Task for update", task)
+	}
+
+	updatedTask := models.Task{StartTime: start, EndTime: end, Detail: detail}
+	matchedCount, updatedCount, err := tskStore.UpdateTask(ctx, tid, &updatedTask)
+
+	if err != nil {
+		return nil, fmt.Errorf("error occurred while updating task:: %w", err)
+	}
+
+	if updatedCount != 1 {
+		return nil, fmt.Errorf("unknown error incorrect update count")
+	}
+
+	return models.NewTaskEditResponse(matchedCount, updatedCount, updatedTask), nil
+}
+
+func RemoveTask(ctx context.Context, tid, uid string) (int64, error) {
+	taskStore, err := dacstore.CreateTaskStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error creating task store:: %v", err))
+		return 0, fmt.Errorf("failed to create task store:: %w", err)
+	}
+
+	task, err := taskStore.FetchTask(ctx, tid)
+	if err != nil {
+		var noResults *dacstore.ErrNoCacheResult
+		if errors.As(err, &noResults) {
+			logger.MustDebug(fmt.Sprintf("could not find task with ID: %v", tid))
+			return 0, fmt.Errorf("could not find task with ID: %v", tid)
+		}
+		logger.MustDebug(fmt.Sprintf("could not read task for delete:: %v", err))
+		return 0, fmt.Errorf("could not read task for delete:: %v", err)
+	}
+
+	if tsk, ok := task.(models.Task); ok {
+		if tsk.User != uid {
+			logger.MustDebug("delete action not allowed user must own task")
+			return 0, fmt.Errorf("action not allowed user must own task")
+		}
+	} else {
+		logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task for delete", task))
+		return 0, fmt.Errorf("could not cast Type[%T] as Task for delete", task)
+	}
+
+	delCount, err := taskStore.DeleteTask(ctx, tid)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error deleting task task:: %v", err))
+		return 0, fmt.Errorf("failed to delete task:: %w", err)
+	}
+
+	return delCount, nil
 }
