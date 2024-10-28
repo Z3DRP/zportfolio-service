@@ -31,6 +31,30 @@ func NewLogger(lf *lumberjack.Logger, lvl string, jsonfmtr, reportCaller bool) *
 	)
 }
 
+type ErrConfigRead struct {
+	FileType     string
+	Path         string
+	ConfigObject string
+	Err          error
+}
+
+func (ec *ErrConfigRead) Error() string {
+	return fmt.Sprintf("An error occurred while reading %v config file: FileType: %v, Path: %v :: %v", ec.ConfigObject, ec.FileType, ec.Path, ec.Err)
+}
+
+func (ec *ErrConfigRead) Unwrap() error {
+	return ec.Err
+}
+
+func NewConfigReadError(configObj string, e error) *ErrConfigRead {
+	return &ErrConfigRead{
+		FileType:     "yaml",
+		Path:         "./config",
+		ConfigObject: configObj,
+		Err:          e,
+	}
+}
+
 type Configurations struct {
 	ZServer        ZServerConfig `mapstructure:"zserver"`
 	DatabaseStore  DbStoreConfig `mapstructure:"database"`

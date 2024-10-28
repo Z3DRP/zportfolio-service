@@ -115,4 +115,5 @@ type TaskRequest struct {
 	Start  string
 	End    string
 	Detail string
+	Uid    string
 }

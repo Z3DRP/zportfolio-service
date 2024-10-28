@@ -22,7 +22,7 @@ type ErrNoCacheResult struct {
 }
 
 func (e *ErrNoCacheResult) Error() string {
-	return fmt.Sprintf("cacheId: %v; does not have a value for Key: %v", e.ClientId, e.Key)
+	return fmt.Sprintf("cacheId: %v; does not have a value for Key: %v", e.ClientId.String(), e.Key)
 }
 
 func (e *ErrNoCacheResult) Unwrap() error {
@@ -34,6 +34,26 @@ func NewNoCacheResultErr(cid *redis.IntCmd, k string, err error) *ErrNoCacheResu
 		ClientId: cid,
 		Key:      k,
 		Err:      err,
+	}
+}
+
+type ErrRedisConnect struct {
+	ClientId *redis.IntCmd
+	Err      error
+}
+
+func (e *ErrRedisConnect) Error() string {
+	return fmt.Sprintf("could not connect to redis client: %v :: %v", e.ClientId.String(), e.Err)
+}
+
+func (e *ErrRedisConnect) Unwrap() error {
+	return e.Err
+}
+
+func NewRedisConnErr(cid *redis.IntCmd, e error) *ErrRedisConnect {
+	return &ErrRedisConnect{
+		ClientId: cid,
+		Err:      e,
 	}
 }
 
