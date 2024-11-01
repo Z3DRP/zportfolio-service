@@ -227,6 +227,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 				handleJsonEncodeErr("task insert response", err, w)
 				return
 			}
+
 		} else {
 			// logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err))
 			// http.Error(w, fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err), http.StatusInternalServerError)

@@ -59,6 +59,7 @@ type Configurations struct {
 	ZServer        ZServerConfig `mapstructure:"zserver"`
 	DatabaseStore  DbStoreConfig `mapstructure:"database"`
 	ZypherSettings ZypherConfig  `mapstructure:"zysettings"`
+	ZEmailSettings ZEmailConfig  `mapstructure:"zemailsettings"`
 }
 
 type ZServerConfig struct {
@@ -89,6 +90,12 @@ type ZypherConfig struct {
 	Alternate    bool `mapstructure:"alternate"`
 	IgnSpace     bool `mapstructure:"ignSpace"`
 	RestrictHash bool `mapstructure:"restrictHash"`
+}
+
+type ZEmailConfig struct {
+	SenderAddress   string `mapstructure:"senderAddress"`
+	SenderPwd       string `mapstructure:"senderPwd"`
+	RecieverAddress string `mapstructure:"recieverAddress"`
 }
 
 func ReadServerConfig() (*ZServerConfig, error) {
@@ -155,6 +162,27 @@ func ReadZypherSettings() (*ZypherConfig, error) {
 		return nil, errors.New(emsg)
 	}
 	return &configs.ZypherSettings, nil
+}
+
+func ReadEmailConfig() (*ZEmailConfig, error) {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./config")
+	var configs Configurations
+
+	if err := viper.ReadInConfig(); err != nil {
+		emsg := fmt.Sprintf("error reading config file, %v", err)
+		logger.MustDebug(emsg)
+		return nil, errors.New(emsg)
+	}
+
+	err := viper.Unmarshal(&configs)
+	if err != nil {
+		emsg := fmt.Sprintf("unable to decode config to json:: %v", err)
+		logger.MustDebug(emsg)
+		return nil, errors.New(emsg)
+	}
+	return &configs.ZEmailSettings, nil
 }
 
 func IsValidOrigin(origin string) bool {

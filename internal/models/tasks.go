@@ -7,11 +7,30 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type TaskType int
+
+const (
+	Phone = iota
+	InPerson
+	MicrosoftTeams
+	Zoom
+	GoogleMeets
+)
+
+func (tt TaskType) String() string {
+	return [...]string{"Phone", "In Person", "Microsoft Teams", "Zoom", "Google Meets"}[tt]
+}
+
+func (tt TaskType) Index() int {
+	return int(tt)
+}
+
 type Task struct {
 	Id        primitive.ObjectID `bson:"_id:omitempty"`
 	StartTime time.Time          `bson:"start_time"`
 	EndTime   time.Time          `bson:"end_time"`
 	Detail    string             `bson:"detail"`
+	Method    TaskType           `bson:"method"`
 	Tid       string             `bson:"tid"`
 	User      string             `bson:"user"`
 }
