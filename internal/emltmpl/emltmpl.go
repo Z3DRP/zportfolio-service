@@ -6,7 +6,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Z3DRP/zportfolio-service/internal/adapters"
+	"github.com/Z3DRP/zportfolio-service/enums"
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 )
 
 const TSKTXT_IDENTIFIER = "tsk-alert-txt"
@@ -19,7 +20,7 @@ type TaskNotificationHtmlTmpl *htemplate.Template
 
 // TODO add customizations for colors
 
-func NewTaskAlertTxtTmpl(alertInfo adapters.TaskRequestAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
+func NewTaskAlertTxtTmpl(alertInfo dtos.TaskRequestAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
 	txtNotification := template.New(fmt.Sprintf("%v%v", TSKTXT_IDENTIFIER, time.Now().UnixMilli()))
 	htmlNotification := htemplate.New(fmt.Sprintf("%v%v", TSKHTML_IDENTIFIER, time.Now().UnixMilli()))
 
@@ -47,12 +48,12 @@ func NewTaskAlertTxtTmpl(alertInfo adapters.TaskRequestAlertDTO) (TaskNotificati
 		<meta charset="UTF-8">
 		<title>Task Request Notification</title>
 	</head>
+	<body style="font-family: sans-serif, Arial; color:{{.TextColor}} background-color:{{.BackgroundColor}} line-height:1.6;">
 	{{if .Image}}
 	<header>
-		<img src="data:image/png;base64,{{.Image}}" alt="Banner image" style="width:100%; height:autp" />
+		<img src="data:image/png;base64,{{.Image}}" alt="Banner image" style="width:100%; height:auto" />
 	</header>
 	{{end}}
-	<body style="font-family: sans-serif, Arial; color:{{.BodyColor}} background-color:{{.BackgroundColor}} line-height:1.6;">
 	<h1 style="margin-bottom: 8px;">Task Request Notification</h1><br>
 	<h3>The following task request:</h3><br>
 	<div style="margin: 4px;">
@@ -93,8 +94,74 @@ func NewTaskAlertTxtTmpl(alertInfo adapters.TaskRequestAlertDTO) (TaskNotificati
 	return txtNotification, htmlNotification, err
 }
 
-func NewThanksNotificationTmpl(alertInfo adapters.ThanksAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
+func NewThanksNotificationTmpl(alertInfo dtos.ThanksAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
 	txtNoti := template.New(fmt.Sprintf("%v%v", THKTXT_IDENTIFIER, time.Now().UnixMilli()))
 	htmlNoti := htemplate.New(fmt.Sprintf("%v%v", THKHTML_IDENTIFIER, time.Now().UnixMilli()))
 
+	txtTmpl := `
+		Hello {{.Name}},\n
+		Thank you for requesting a time to speak with me about upcoming opportunities offered or filled by your company.
+		If you need a updated copy of my resume one can be found at zachpalmer.dev/resume.\n
+		I am looking forward to speaking with you.\n\n
+
+		Best regards,\n
+		Zach Palmer
+	`
+
+	txtNoti, err := txtNoti.Parse(txtTmpl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	htmlTmpl := `
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<meta charset="UTF-8">
+			<title>Task Request Notification</title>
+		</head>
+		<body style="font-family: sans-serif, Arial; color: {{.TextColor}}; background-color: {{.BackgroundColor}}; line-height:1.6;">
+			{{if .Image}}
+				<header>
+					<img src="data:image/png;base64,{{.Image}}" alt="Banner image" style="width:100%; height:auto" />
+				</header>
+			{{end}}	
+			<h2 style="margin: 2px;">Hello {{.Name}},</h2><br>
+			<p>
+				Thank you for requesting a time to speak with me about upcoming opportunities offered or filled by your company.
+				If you need a updated copy of my resume one can be found at <strong>zachpalmer.dev/resume.</strong>
+			</p>
+			<p>
+				I am looking forward to speaking with you.
+			</p>
+
+			<h5 style="margin-top: 2px;">Best regards,</h5>
+			<h5>Zach Palmer</h5>
+		</body>
+	</html>
+	`
+
+	htmlNoti, err = htmlNoti.Parse(htmlTmpl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return txtNoti, htmlNoti, nil
+}
+
+// TODO on this templateFacotry method handle the errors for the casting from DTOers to the structs
+
+func TemplateFactory(ztype enums.ZemailType, emailData dtos.DTOer) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
+	switch ztype.String() {
+	case "Task Request":
+		return NewTaskAlertTxtTmpl(emailData.(dtos.TaskRequestAlertDTO))
+	case "Task Edit":
+		return nil, nil, nil
+	case "Task Delete":
+		return nil, nil, nil
+	case "Thank You":
+		return NewThanksNotificationTmpl(emailData.(dtos.ThanksAlertDTO))
+	default:
+		return nil, nil, nil
+	}
 }

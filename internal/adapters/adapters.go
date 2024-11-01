@@ -19,14 +19,3 @@ type Customizations struct {
 	TextColor   string
 	BannerImage string // use base 64 encode image
 }
-
-type TaskRequestAlertDTO struct {
-	TaskData
-	UserData
-	Customizations
-}
-
-type ThanksAlertDTO struct {
-	UserData
-	Customizations
-}
