@@ -4,9 +4,9 @@ type ZemailType int
 
 const (
 	TaskRequest = iota
-	ThankYou
 	TaskEdit
 	TaskDelete
+	ThankYou
 )
 
 func (zt ZemailType) String() string {

@@ -5,34 +5,35 @@ import (
 
 	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
+	"github.com/Z3DRP/zportfolio-service/internal/emltmpl"
 )
 
 type ZEmail struct {
-	Recipient    string
-	Sender       string
-	Subject      string
-	Body         string
-	BCC          []string
-	UseHtml      bool
-	HtmlTemplate string // might have to change to a temple cmp
-	TemplateBody string // have this be a template.. user enters contact info, email, name, msg etc to form then it is fed into a
+	HtmlBody  *emltmpl.HtmlNotificationTemplate // might have to change to a temple cmp
+	TextBody  *emltmpl.TxtNotificationTemplate  // have this be a template.. user enters contact info, email, name, msg etc to form then it is fed into a
+	Recipient string
+	Sender    string
+	Subject   string
 	// a go standrd lib template to create the email body
-	// NOTE TemplateBody could be extended to have a template type to offer other message body templates
-	username string
-	pwd      string
+	// NOTE TextBody could be extended to have a template type to offer other message body templates
+	username     string
+	pwd          string
+	smtpServer   string
+	smtpPort     int
+	UseHtml      bool
+	TemplateData dtos.AlertDTOer
+	CC           []string
 }
 
 func NewDefaultZemail() *ZEmail {
 	return &ZEmail{
-		Recipient:    "",
-		Sender:       "",
-		Subject:      "",
-		Body:         "",
-		BCC:          make([]string, 0),
-		UseHtml:      false,
-		HtmlTemplate: "",
-		username:     "",
-		pwd:          "",
+		Recipient: "",
+		Sender:    "",
+		Subject:   "",
+		CC:        make([]string, 0),
+		UseHtml:   false,
+		username:  "",
+		pwd:       "",
 	}
 }
 
@@ -44,45 +45,55 @@ func NewZemail(ops ...func(*ZEmail)) *ZEmail {
 	return z
 }
 
-func (ze *ZEmail) Build(ops ...func(*ZEmail)) (*ZEmail, error) {
+func Build(emailData dtos.AlertDTOer, ops ...func(*ZEmail)) (*ZEmail, error) {
 	emlConfig, err := config.ReadEmailConfig()
 	if err != nil {
 		return &ZEmail{}, fmt.Errorf("could not find sender email settings:: %v", err)
 	}
 
-	allOps := append([]func(*ZEmail){withUsername(emlConfig.SenderAddress), withUserPwd(emlConfig.SenderPwd)}, ops...)
-
-	return NewZemail(allOps...), nil
+	allOps := append(
+		[]func(*ZEmail){
+			withUsername(emlConfig.SenderAddress),
+			withUserPwd(emlConfig.SenderPwd),
+			WithSender(emlConfig.SenderAddress),
+			withSmtpServer(emlConfig.SmtpServer),
+			withSmtpPort(emlConfig.SmtpPort),
+			WithAlertData(emailData),
+		},
+		ops...,
+	)
+	ze := NewZemail(allOps...)
+	ze.SetTemplates(emailData)
+	return ze, nil
 }
 
 func CreateConfigList(emlReq dtos.ZemailRequestDto) []func(*ZEmail) {
 	configOps := make([]func(*ZEmail), 0)
+	configOps = append(configOps, WithUseHtml(emlReq.UseHtml))
 	if emlReq.To != "" {
 		configOps = append(configOps, WithRecipient(emlReq.To))
 	}
-	if emlReq.From != "" {
-		configOps = append(configOps, WithSender(emlReq.From))
-	}
-	//TODO remove body from ZEMail struct
-	// if emlReq.Body != "" {
-	//	configOps = append(configOps, WithBody(emlReq.Body))
-	// }
-	configOps = append(configOps, WithUseHtml(emlReq.UseHtml))
-
-	//TODO based on the type of email generate the corresponding template then set the text or html on struct
-	if emlReq.UseHtml {
-		configOps = append(configOps, WithHtmlTemplateBody(emlReq.Body))
-	} else {
-		configOps = append(configOps, WithTemplateBody(emlReq.Body))
-	}
-	if len(emlReq.Bcc) > 0 {
-		configOps = append(configOps, WithBCc(emlReq.Bcc))
+	if len(emlReq.Cc) > 0 {
+		configOps = append(configOps, WithCc(emlReq.Cc))
 	}
 	if emlReq.Subject != "" {
 		configOps = append(configOps, WithSubject(emlReq.Subject))
 	}
 
 	return configOps
+}
+
+func (z *ZEmail) SetTemplates(alertReq dtos.AlertDTOer) (*ZEmail, error) {
+	txtTemplate, htmlTemplate, err := emltmpl.TemplateFactory(alertReq)
+	if err != nil {
+		return nil, err
+	}
+
+	z.TextBody = &txtTemplate
+	if z.UseHtml {
+		z.HtmlBody = &htmlTemplate
+	}
+	return z, nil
 }
 
 func WithRecipient(rcp string) func(*ZEmail) {
@@ -104,6 +115,24 @@ func withUserPwd(pwd string) func(*ZEmail) {
 	}
 }
 
+func withSmtpServer(addr string) func(*ZEmail) {
+	return func(z *ZEmail) {
+		z.smtpServer = addr
+	}
+}
+
+func withSmtpPort(p int) func(*ZEmail) {
+	return func(z *ZEmail) {
+		z.smtpPort = p
+	}
+}
+
+func WithAlertData(d dtos.AlertDTOer) func(*ZEmail) {
+	return func(z *ZEmail) {
+		z.TemplateData = d
+	}
+}
+
 func WithSender(from string) func(*ZEmail) {
 	return func(z *ZEmail) {
 		z.Sender = from
@@ -116,15 +145,9 @@ func WithSubject(sub string) func(*ZEmail) {
 	}
 }
 
-func WithBody(bdy string) func(z *ZEmail) {
+func WithCc(c []string) func(z *ZEmail) {
 	return func(z *ZEmail) {
-		z.Body = bdy
-	}
-}
-
-func WithBCc(c []string) func(z *ZEmail) {
-	return func(z *ZEmail) {
-		z.BCC = c
+		z.CC = c
 	}
 }
 
@@ -134,14 +157,18 @@ func WithUseHtml(isIt bool) func(z *ZEmail) {
 	}
 }
 
-func WithTemplateBody(tbody string) func(z *ZEmail) {
-	return func(z *ZEmail) {
-		z.TemplateBody = tbody
-	}
+func (z ZEmail) SmtpPort() int {
+	return z.smtpPort
 }
 
-func WithHtmlTemplateBody(tbody string) func(z *ZEmail) {
-	return func(z *ZEmail) {
-		z.HtmlTemplate = tbody
-	}
+func (z ZEmail) SmtpServer() string {
+	return z.smtpServer
+}
+
+func (z ZEmail) Username() string {
+	return z.username
+}
+
+func (z ZEmail) Pwd() string {
+	return z.pwd
 }

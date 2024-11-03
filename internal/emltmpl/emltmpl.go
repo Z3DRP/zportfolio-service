@@ -1,6 +1,7 @@
 package emltmpl
 
 import (
+	"errors"
 	"fmt"
 	htemplate "html/template"
 	"text/template"
@@ -15,12 +16,28 @@ const TSKHTML_IDENTIFIER = "tsk-alert-html"
 const THKTXT_IDENTIFIER = "thk-alert-txt"
 const THKHTML_IDENTIFIER = "thk-alert-html"
 
-type TaskNotificationTxtTmpl *template.Template
-type TaskNotificationHtmlTmpl *htemplate.Template
+type TxtNotificationTemplate *template.Template
+type HtmlNotificationTemplate *htemplate.Template
+
+type ErrEmailTypeErr struct {
+	ExpectedEmailType enums.ZemailType
+	ActualEmailType   enums.ZemailType
+}
+
+func (emt ErrEmailTypeErr) Error() string {
+	return fmt.Sprintf("invalid error template type, expected: %v, got: %v", emt.ExpectedEmailType.String(), emt.ActualEmailType.String())
+}
+
+func NewErrEmailType(expType, actType enums.ZemailType) ErrEmailTypeErr {
+	return ErrEmailTypeErr{
+		ExpectedEmailType: expType,
+		ActualEmailType:   actType,
+	}
+}
 
 // TODO add customizations for colors
 
-func NewTaskAlertTxtTmpl(alertInfo dtos.TaskRequestAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
+func NewTaskAlertTmpl(alertInfo dtos.TaskRequestAlertDTO) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
 	txtNotification := template.New(fmt.Sprintf("%v%v", TSKTXT_IDENTIFIER, time.Now().UnixMilli()))
 	htmlNotification := htemplate.New(fmt.Sprintf("%v%v", TSKHTML_IDENTIFIER, time.Now().UnixMilli()))
 
@@ -94,7 +111,7 @@ func NewTaskAlertTxtTmpl(alertInfo dtos.TaskRequestAlertDTO) (TaskNotificationTx
 	return txtNotification, htmlNotification, err
 }
 
-func NewThanksNotificationTmpl(alertInfo dtos.ThanksAlertDTO) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
+func NewThanksNotificationTmpl(alertInfo dtos.ThanksAlertDTO) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
 	txtNoti := template.New(fmt.Sprintf("%v%v", THKTXT_IDENTIFIER, time.Now().UnixMilli()))
 	htmlNoti := htemplate.New(fmt.Sprintf("%v%v", THKHTML_IDENTIFIER, time.Now().UnixMilli()))
 
@@ -151,17 +168,23 @@ func NewThanksNotificationTmpl(alertInfo dtos.ThanksAlertDTO) (TaskNotificationT
 
 // TODO on this templateFacotry method handle the errors for the casting from DTOers to the structs
 
-func TemplateFactory(ztype enums.ZemailType, emailData dtos.DTOer) (TaskNotificationTxtTmpl, TaskNotificationHtmlTmpl, error) {
-	switch ztype.String() {
+func TemplateFactory(emailData dtos.AlertDTOer) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
+	switch emailData.AlertTypeString() {
 	case "Task Request":
-		return NewTaskAlertTxtTmpl(emailData.(dtos.TaskRequestAlertDTO))
+		if data, ok := emailData.(dtos.TaskRequestAlertDTO); ok {
+			return NewTaskAlertTmpl(data)
+		}
+		return nil, nil, NewErrEmailType(enums.ZemailType(0), enums.ZemailType(emailData.AlertType()))
 	case "Task Edit":
-		return nil, nil, nil
+		return nil, nil, errors.ErrUnsupported
 	case "Task Delete":
-		return nil, nil, nil
+		return nil, nil, errors.ErrUnsupported
 	case "Thank You":
-		return NewThanksNotificationTmpl(emailData.(dtos.ThanksAlertDTO))
+		if data, ok := emailData.(dtos.ThanksAlertDTO); ok {
+			return NewThanksNotificationTmpl(data)
+		}
+		return nil, nil, NewErrEmailType(enums.ZemailType(3), enums.ZemailType(emailData.AlertType()))
 	default:
-		return nil, nil, nil
+		return nil, nil, errors.New("invalid template type")
 	}
 }

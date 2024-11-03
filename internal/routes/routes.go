@@ -14,6 +14,7 @@ import (
 	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/controller"
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/middleware"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/Z3DRP/zportfolio-service/internal/utils"
@@ -140,7 +141,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		// var tsk map[string]interface{}
-		tsk := models.TaskRequest{}
+		tsk := dtos.TaskRequestDTO{}
 		settings, err := config.ReadZypherSettings()
 		if err != nil {
 			// logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
@@ -219,6 +220,8 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 			handleTaskActionErr("createing", err, uid, w)
 			return
 		}
+
+		// TODO call SendTaskRequestNotificationEmail
 
 		if tskRes, ok := nwTask.(*models.TaskInsertResponse); ok {
 			if err := json.NewEncoder(w).Encode(tskRes); err != nil {

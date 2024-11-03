@@ -11,43 +11,92 @@ type DTOer interface {
 	String() string
 }
 
+type AlertDTOer interface {
+	AlertType() int
+	AlertTypeString() string
+}
+
+type TaskRequestDTO struct {
+	Start  string
+	End    string
+	Detail string
+	Uid    string
+}
+
 type TaskRequestAlertDTO struct {
 	adp.TaskData
 	adp.UserData
 	adp.Customizations
+	alertType enums.ZemailType
+}
+
+func NewTaskRequestAlertDto(tskData adp.TaskData, usrData adp.UserData, cstms adp.Customizations) *TaskRequestAlertDTO {
+	return &TaskRequestAlertDTO{
+		TaskData:       tskData,
+		UserData:       usrData,
+		Customizations: cstms,
+		alertType:      enums.ZemailType(0),
+	}
 }
 
 func (ts TaskRequestAlertDTO) String() string {
 	return fmt.Sprintf("%#v\n", ts)
 }
 
+func (ts TaskRequestAlertDTO) AlertType() int {
+	return ts.alertType.Index()
+}
+
+func (ts TaskRequestAlertDTO) AlertTypeString() string {
+	return ts.alertType.String()
+}
+
 type ThanksAlertDTO struct {
 	adp.UserData
 	adp.Customizations
+	alertType enums.ZemailType
+}
+
+func NewThanksAlertDto(usrData adp.UserData, cstms adp.Customizations) *ThanksAlertDTO {
+	return &ThanksAlertDTO{
+		UserData:       usrData,
+		Customizations: cstms,
+		alertType:      enums.ZemailType(3),
+	}
 }
 
 func (th ThanksAlertDTO) String() string {
 	return fmt.Sprintf("%#v\n", th)
 }
 
-type ZemailRequestDto struct {
-	To        string
-	From      string
-	Subject   string
-	Bcc       []string
-	Body      string
-	UseHtml   bool
-	EmailType enums.ZemailType
+func (ta ThanksAlertDTO) AlertTypeString() string {
+	return ta.alertType.String()
 }
 
-func NewZemailRequest(to, frm, sub, bdy string, bcc []string, useHtml bool, eType enums.ZemailType) *ZemailRequestDto {
+func (ta ThanksAlertDTO) AlertType() int {
+	return ta.alertType.Index()
+}
+
+type ZemailRequestDto struct {
+	To         string
+	Subject    string
+	Cc         []string
+	CustomBody string
+	UseHtml    bool
+	EmailData  AlertDTOer
+}
+
+func (ze ZemailRequestDto) String() string {
+	return fmt.Sprintf("%#v\n", ze)
+}
+
+func NewZemailRequestDto(to, sub, bdy string, cc []string, useHtml bool, data AlertDTOer) *ZemailRequestDto {
 	return &ZemailRequestDto{
-		To:        to,
-		From:      frm,
-		Subject:   sub,
-		Bcc:       bcc,
-		Body:      bdy,
-		UseHtml:   useHtml,
-		EmailType: eType,
+		To:         to,
+		Subject:    sub,
+		Cc:         cc,
+		CustomBody: bdy,
+		UseHtml:    useHtml,
+		EmailData:  data,
 	}
 }

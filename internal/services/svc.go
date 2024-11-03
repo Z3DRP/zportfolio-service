@@ -1,6 +1,7 @@
 package services
 
+import "context"
+
 type Service interface {
-	Initialize() Service
-	Execute() error
+	Execute(context.Context) error
 }

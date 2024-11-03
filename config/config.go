@@ -96,6 +96,8 @@ type ZEmailConfig struct {
 	SenderAddress   string `mapstructure:"senderAddress"`
 	SenderPwd       string `mapstructure:"senderPwd"`
 	RecieverAddress string `mapstructure:"recieverAddress"`
+	SmtpServer      string `mapstructure:"smtpServer"`
+	SmtpPort        int    `mapstructure:"smtpPort"`
 }
 
 func ReadServerConfig() (*ZServerConfig, error) {
