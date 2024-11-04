@@ -21,6 +21,8 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/Z3DRP/zportfolio-service/internal/utils"
 	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
+	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 var logfile = zlg.NewLogFile(
@@ -33,15 +35,19 @@ var logger = zlg.NewLogger(
 	zlg.WithReportCaller(false),
 )
 
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return config.IsValidOrigin(r.Header.Get("origin")) },
+}
+
 func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
 	// TODO refactore routes and dacstores so routes and controller so controller checks the cache and
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /about", getAbout)
 	mux.HandleFunc("POST /zypher", getZypher)
-	mux.HandleFunc("GET /schedule", getSchedule)
-	mux.HandleFunc("POST /task", createTask)
-	mux.HandleFunc("PUT /task", editTask)
-	mux.HandleFunc("DELETE /task", removeTask)
+	mux.HandleFunc("GET /schedule", handleScheduleWebsocket)
+	mux.HandleFunc("POST /task", handleCreateTask)
+	mux.HandleFunc("PUT /task", handleEditTask)
+	mux.HandleFunc("DELETE /task", handleRemoveTask)
 
 	server := &http.Server{
 		Addr:         sconfig.Address,
@@ -53,7 +59,59 @@ func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
 	return server, nil
 }
 
-func getSchedule(w http.ResponseWriter, r *http.Request) {
+// TODO update dtos to accept json and in each Task event handler use make any refactors needed
+func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("could not upgrade http connection:: %v", err))
+		http.Error(w, fmt.Sprintf("could not upgrade http connection:: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	for {
+		var msg dtos.Message
+		err := conn.ReadJSON(&msg)
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("could not read websocket message:: %v", err))
+			emsg := dtos.ErrMessage{Err: err}
+			err = conn.WriteJSON(emsg)
+			if err != nil {
+				conn.Close()
+			}
+			break
+		}
+
+		switch msg.Event {
+		case "getSchedule":
+			handleGetSchedule(w, r)
+		case "createTask":
+			handleCreateTask(w, r)
+		case "editTask":
+			handleEditTask(w, r)
+		case "deleteTask":
+			handleRemoveTask(w, r)
+		default:
+			eventErr := struct {
+				Err   string
+				Event string
+			}{
+				Err:   "unknown event",
+				Event: msg.Event,
+			}
+
+			logger.MustDebug(fmt.Sprintf("%v: %v", eventErr.Err, eventErr.Event))
+			err = conn.WriteJSON(eventErr)
+			if err != nil {
+				logger.MustDebug(fmt.Sprintf("error occurred while trying to write json error to socket connection:: %v", err))
+				conn.Close()
+			}
+		}
+	}
+
+}
+
+func handleGetSchedule(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
@@ -133,7 +191,7 @@ func getSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createTask(w http.ResponseWriter, r *http.Request) {
+func handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
@@ -264,7 +322,7 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func removeTask(w http.ResponseWriter, r *http.Request) {
+func handleRemoveTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
@@ -317,8 +375,6 @@ func removeTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			usrData := adapters.NewUserData()
-			emlData := adapters.NewEmailInfo()
 			w.WriteHeader(http.StatusOK)
 			response := map[string]int64{
 				"deleteCount": delCount,
@@ -329,7 +385,7 @@ func removeTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func editTask(w http.ResponseWriter, r *http.Request) {
+func handleEditTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	taskId := r.URL.Query().Get("taskid")
@@ -536,49 +592,14 @@ func getAbout(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
 		settings, err := config.ReadZypherSettings()
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
-			// http.Error(w, fmt.Sprintf("an error occurred while reading zypher config:: %v", err), http.StatusInternalServerError)
-			handleConfigReadErr(config.NewConfigReadError("zypher", err), w)
+			logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
 			return
 		}
 
-		uip := utils.GetIP(r)
-		uid, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
-		var noResults *dacstore.ErrNoCacheResult
-
-		if err != nil {
-			if !errors.As(err, &noResults) {
-				// logger.MustDebug(fmt.Sprintf("error occurred while reading user cache:: %v", err))
-				// http.Error(w, fmt.Sprintf("error occurred while reading user cache:: %v", err), http.StatusInternalServerError)
-				handleCacheReadErr("user", err, w)
-				return
-			}
-		}
-
-		if uid == "" {
-			uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
-			// add user to cache so when trying to edit tasks id can be checked
-			if err != nil {
-				handleIdGeneratorErr("user", err, w)
-				return
-			}
-
-			if err = dacstore.SetUserData(r.Context(), cacheClient, uip, uid); err != nil {
-				handleCacheSetErr("user", err, w)
-				return
-			}
-
-			if res, err := controller.CreateVisitor(r.Context(), 1, uip, false); err != nil {
-				logger.MustDebug(fmt.Sprintf("failed to create visitor record:: %v", err))
-			} else {
-				logger.MustDebug(fmt.Sprintf("successfully created visitor record:: %v", res.PrintRes()))
-			}
-		}
-
-		//TODO update visitor count
-		ads
+		go updateVisitorCount(settings, cacheClient, r)
 
 		if pdata, ok := portfolioData.(*models.PortfolioResponse); ok {
 			// json.NewEncoder writes the data to request or errors
@@ -596,6 +617,43 @@ func getAbout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func updateVisitorCount(settings config.ZypherConfig, cacheClient *redis.Client, r *http.Request) {
+	uip := utils.GetIP(r)
+	uid, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
+	var noResults *dacstore.ErrNoCacheResult
+
+	if err != nil {
+		if !errors.As(err, &noResults) {
+			logger.MustDebug(fmt.Sprintf("error occurred while reading user cache:: %v", err))
+			return
+		}
+	}
+
+	if uid == "" {
+		uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
+		// add user to cache so when trying to edit tasks id can be checked
+		if err != nil {
+			logger.MustDebug(fmt.Sprintf("an error occurred while calculting visitor zypher:: %v", err))
+			return
+		}
+
+		if err = dacstore.SetUserData(r.Context(), cacheClient, uip, uid); err != nil {
+			logger.MustDebug(fmt.Sprintf("an error occurred while setting visitor id in cache:: %v", err))
+			return
+		}
+
+		if res, err := controller.CreateVisitor(r.Context(), 1, uip, false); err != nil {
+			logger.MustDebug(fmt.Sprintf("failed to create visitor record:: %v", err))
+		} else {
+			logger.MustDebug(fmt.Sprintf("successfully created visitor record:: %v", res.PrintRes()))
+		}
+	}
+
+	_, _, err = controller.EditVisitorCount(r.Context(), uip)
+	if err != nil {
+		logger.MustDebug("visitor successfully updated")
+	}
+}
 func headerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")

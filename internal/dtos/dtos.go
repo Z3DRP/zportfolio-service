@@ -111,3 +111,20 @@ func NewZemailRequestDto(to, sub, bdy string, cc []string, useHtml bool, data Al
 		EmailData:  data,
 	}
 }
+
+type Message struct {
+	Event   string      `json:"event"`
+	Payload interface{} `json:"payload"`
+}
+
+type ErrMessage struct {
+	Err error
+}
+
+func (e ErrMessage) Error() string {
+	return fmt.Sprintf("could not read message from websocket, Err: %v", e.Err)
+}
+
+func (e ErrMessage) Unwrap() error {
+	return e.Err
+}

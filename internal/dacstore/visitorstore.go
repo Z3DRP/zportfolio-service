@@ -45,3 +45,15 @@ func (v VisitorStore) FetchVisitor(ctx context.Context, ip string) (models.Modle
 	}
 	return &vis, nil
 }
+
+func (v VisitorStore) UpdateVisitorCount(ctx context.Context, ip string) (int64, int64, error) {
+	filter := bson.M{"address": ip}
+	update := bson.M{"$inc": bson.M{"visit_count": 1}}
+	result, err := v.collection.UpdateOne(ctx, filter, update)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return result.MatchedCount, result.ModifiedCount, nil
+}

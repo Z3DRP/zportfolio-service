@@ -278,3 +278,23 @@ func CreateVisitor(ctx context.Context, visitCount int, addr string, hasCreatedT
 	vis.Id = vId
 	return models.VisitorResponse{Visitor: vis, Result: vId}, nil
 }
+
+func EditVisitorCount(ctx context.Context, addr string) (int64, int64, error) {
+	// TODO need to update this method to increment the visiCount in mongo query
+	vStore, err := dacstore.CreateVisitorStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("could not create visitor store:: %v", err))
+		return 0, 0, fmt.Errorf("could not create visitor store:: %w", err)
+	}
+
+	matchedCount, updatedCount, err := vStore.UpdateVisitorCount(ctx, addr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("an error occurred while updating visitor")
+	}
+
+	if updatedCount != 1 {
+		return 0, 0, fmt.Errorf("unknown error inccorrect update count")
+	}
+
+	return matchedCount, updatedCount, nil
+}

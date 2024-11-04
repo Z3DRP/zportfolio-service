@@ -100,3 +100,13 @@ func NewTaskEditResponse(mcount, ucount int64, tsk Task) *TaskEditResponse {
 func (tr *TaskEditResponse) PrintRes() string {
 	return fmt.Sprintf("Task {id: %v, tid: %v, usr: %v, start: %v, end: %v, detail: %v}", tr.Task.Id, tr.Task.Tid, tr.Task.User, tr.Task.StartTime, tr.Task.EndTime, tr.Task.Detail)
 }
+
+type VisitorUpdateResponse struct {
+	MatchedCount int64
+	UpdatedCount int64
+	*Visitor
+}
+
+func (v VisitorUpdateResponse) PrintRes() string {
+	return fmt.Sprintf("%#v\n", v)
+}

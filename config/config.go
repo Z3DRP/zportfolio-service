@@ -145,7 +145,7 @@ func ReadDbConfig() (*DbStoreConfig, error) {
 	return &configs.DatabaseStore, nil
 }
 
-func ReadZypherSettings() (*ZypherConfig, error) {
+func ReadZypherSettings() (ZypherConfig, error) {
 	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
 	viper.AddConfigPath("./config")
@@ -155,16 +155,16 @@ func ReadZypherSettings() (*ZypherConfig, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		emsg := fmt.Sprintf("error reading config file, %v", err)
 		logger.MustDebug(emsg)
-		return nil, errors.New(emsg)
+		return ZypherConfig{}, errors.New(emsg)
 	}
 
 	err := viper.Unmarshal(&configs)
 	if err != nil {
 		emsg := fmt.Sprintf("unable to decode config to json:: %v", err)
 		logger.MustDebug(emsg)
-		return nil, errors.New(emsg)
+		return ZypherConfig{}, errors.New(emsg)
 	}
-	return &configs.ZypherSettings, nil
+	return configs.ZypherSettings, nil
 }
 
 func ReadEmailConfig() (*ZEmailConfig, error) {
