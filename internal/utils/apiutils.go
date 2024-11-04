@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+
+	adp "github.com/Z3DRP/zportfolio-service/internal/adapters"
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
+	"github.com/Z3DRP/zportfolio-service/internal/models"
 )
 
 func GetIP(r *http.Request) string {
@@ -55,4 +59,12 @@ func GenToken() ([]byte, error) {
 		return nil, fmt.Errorf("error occurred while generating id:: %w", err)
 	}
 	return asci, nil
+}
+
+func ConvertTaskRequest(task models.Task, tr dtos.TaskRequestDTO) (adp.TaskData, adp.UserData, adp.EmailInfo, adp.Customizations) {
+	tskData := adp.NewTaskData(task)
+	usrData := adp.NewUserData(tr.UsrName, tr.Company, tr.Email, tr.Phone, tr.Roles)
+	emlInfo := adp.NewEmailInfo(tr.Cc, tr.Body, tr.UseHtml)
+	custInfo := adp.NewCustomizations()
+	return tskData, usrData, emlInfo, *custInfo
 }

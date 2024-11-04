@@ -260,3 +260,21 @@ func RemoveTask(ctx context.Context, tid, uid string) (int64, error) {
 
 	return delCount, nil
 }
+
+func CreateVisitor(ctx context.Context, visitCount int, addr string, hasCreatedTask bool) (models.Responser, error) {
+	vis := models.NewVisitor(visitCount, addr, hasCreatedTask)
+	vStore, err := dacstore.CreateVisitorStore(ctx)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("could not create visitor store:: %v", err))
+		return nil, fmt.Errorf("could not create visitor store:: %w", err)
+	}
+
+	vId, err := vStore.Insert(ctx, *vis)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("could not insert visitor record: %v", err))
+		return nil, fmt.Errorf("could not insert visitor record:: %w", err)
+	}
+
+	vis.Id = vId
+	return models.VisitorResponse{Visitor: vis, Result: vId}, nil
+}

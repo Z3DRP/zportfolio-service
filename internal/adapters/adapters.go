@@ -6,6 +6,8 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 )
 
+type TaskRequest struct {
+}
 type TaskData struct {
 	FmtTaskInfo string
 	Details     string
@@ -28,7 +30,7 @@ type UserData struct {
 	Roles   []string
 }
 
-func NewUserData(nm, cm, em, ph, cc, roles string) UserData {
+func NewUserData(nm, cm, em, ph, roles string) UserData {
 	return UserData{
 		Name:    nm,
 		Company: cm,

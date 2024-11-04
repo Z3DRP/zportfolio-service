@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Z3DRP/zportfolio-service/config"
+	"github.com/Z3DRP/zportfolio-service/enums"
+	"github.com/Z3DRP/zportfolio-service/internal/adapters"
 	"github.com/Z3DRP/zportfolio-service/internal/controller"
 	"github.com/Z3DRP/zportfolio-service/internal/dacstore"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
@@ -221,10 +223,32 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO call SendTaskRequestNotificationEmail
-
 		if tskRes, ok := nwTask.(*models.TaskInsertResponse); ok {
-			if err := json.NewEncoder(w).Encode(tskRes); err != nil {
+			// TODO call SendTaskRequestNotificationEmail
+			usrData := adapters.NewUserData(tsk.UsrName, tsk.Company, tsk.Email, tsk.Phone, tsk.Roles)
+			emlData := adapters.NewEmailInfo(tsk.Cc, tsk.Body, tsk.UseHtml)
+			err = controller.SendTaskNotificationEmail(r.Context(), *tskRes.NwTask, usrData, emlData, enums.ZemailType(0))
+			notificationSent := true
+
+			if err != nil {
+				notificationSent = false
+				logger.MustDebug(fmt.Sprintf("failed to send task create notification:: %v", err))
+			}
+
+			response := map[string]any{
+				"notificationSent":  notificationSent,
+				"notificationError": err,
+				"taskResult":        tskRes,
+			}
+
+			go func(udata adapters.UserData, eData adapters.EmailInfo) {
+				err = controller.SendThanksNotification(r.Context(), udata, eData)
+				if err != nil {
+					logger.MustDebug(fmt.Sprintf("could not send thank you notification to '%v' at '%v", udata.Name, udata.Email))
+				}
+			}(usrData, emlData)
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
 				// logger.MustDebug(fmt.Sprintf("could not encode task response into json:: %v", err))
 				// http.Error(w, fmt.Sprintf("could not encode task response into json:: %v", err), http.StatusInternalServerError)
 				handleJsonEncodeErr("task insert response", err, w)
@@ -293,6 +317,8 @@ func removeTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			usrData := adapters.NewUserData()
+			emlData := adapters.NewEmailInfo()
 			w.WriteHeader(http.StatusOK)
 			response := map[string]int64{
 				"deleteCount": delCount,
@@ -313,7 +339,7 @@ func editTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskReq := models.TaskRequest{}
+	taskReq := dtos.TaskRequestDTO{}
 	err := json.NewDecoder(r.Body).Decode(&taskReq)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("could not json decode request body:: %v", err))
@@ -510,6 +536,49 @@ func getAbout(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		settings, err := config.ReadZypherSettings()
+		if err != nil {
+			// logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
+			// http.Error(w, fmt.Sprintf("an error occurred while reading zypher config:: %v", err), http.StatusInternalServerError)
+			handleConfigReadErr(config.NewConfigReadError("zypher", err), w)
+			return
+		}
+
+		uip := utils.GetIP(r)
+		uid, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
+		var noResults *dacstore.ErrNoCacheResult
+
+		if err != nil {
+			if !errors.As(err, &noResults) {
+				// logger.MustDebug(fmt.Sprintf("error occurred while reading user cache:: %v", err))
+				// http.Error(w, fmt.Sprintf("error occurred while reading user cache:: %v", err), http.StatusInternalServerError)
+				handleCacheReadErr("user", err, w)
+				return
+			}
+		}
+
+		if uid == "" {
+			uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
+			// add user to cache so when trying to edit tasks id can be checked
+			if err != nil {
+				handleIdGeneratorErr("user", err, w)
+				return
+			}
+
+			if err = dacstore.SetUserData(r.Context(), cacheClient, uip, uid); err != nil {
+				handleCacheSetErr("user", err, w)
+				return
+			}
+
+			if res, err := controller.CreateVisitor(r.Context(), 1, uip, false); err != nil {
+				logger.MustDebug(fmt.Sprintf("failed to create visitor record:: %v", err))
+			} else {
+				logger.MustDebug(fmt.Sprintf("successfully created visitor record:: %v", res.PrintRes()))
+			}
+		}
+
+		//TODO update visitor count
+		ads
 
 		if pdata, ok := portfolioData.(*models.PortfolioResponse); ok {
 			// json.NewEncoder writes the data to request or errors

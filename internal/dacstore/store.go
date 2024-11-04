@@ -125,6 +125,19 @@ func CreateSkillStore(ctx context.Context) (*SkillStore, error) {
 	return newSkillStore(mc, dbConfig.DbName, dbConfig.SkillCol), nil
 }
 
+func CreateVisitorStore(ctx context.Context) (*VisitorStore, error) {
+	if cfgErr != nil {
+		logger.MustDebug(fmt.Sprintf("config error stopped visitor store creation:: %v", cfgErr))
+		return nil, fmt.Errorf("config error stopped visitor store creation:: %w", cfgErr)
+	}
+
+	mc, err := initializeMongoConnection(ctx, dbConfig.DbUri)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errMongoConn, err)
+	}
+	return newVisitorStore(mc, dbConfig.DbName, dbConfig.VisitorCol), nil
+}
+
 func CreateTaskStore(ctx context.Context) (*TaskStore, error) {
 	if cfgErr != nil {
 		logger.MustDebug(fmt.Sprintf("config error stopped task store creation:: %v", cfgErr))

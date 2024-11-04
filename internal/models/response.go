@@ -63,6 +63,15 @@ type TaskInsertResponse struct {
 	NwTask *Task
 }
 
+type VisitorResponse struct {
+	Result  primitive.ObjectID
+	Visitor *Visitor
+}
+
+func (v VisitorResponse) PrintRes() string {
+	return fmt.Sprintf("%#v\n", v)
+}
+
 func NewTaskInsertResponse(res primitive.ObjectID, tsk *Task) *TaskInsertResponse {
 	return &TaskInsertResponse{
 		Result: res,

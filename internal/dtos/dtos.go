@@ -17,37 +17,48 @@ type AlertDTOer interface {
 }
 
 type TaskRequestDTO struct {
-	Start  string
-	End    string
-	Detail string
-	Uid    string
+	Start       string
+	End         string
+	Detail      string
+	Uid         string
+	UsrName     string
+	Company     string
+	Email       string
+	Phone       string
+	Roles       string
+	Cc          string
+	Body        string
+	BodyColor   string
+	TextColor   string
+	BannerImage string
+	UseHtml     bool
 }
 
-type TaskRequestAlertDTO struct {
+type TaskAlertDTO struct {
 	adp.TaskData
 	adp.UserData
 	adp.Customizations
 	alertType enums.ZemailType
 }
 
-func NewTaskRequestAlertDto(tskData adp.TaskData, usrData adp.UserData, cstms adp.Customizations) *TaskRequestAlertDTO {
-	return &TaskRequestAlertDTO{
+func NewTaskNotificationDto(tskData adp.TaskData, usrData adp.UserData, cstms adp.Customizations, notificationType enums.ZemailType) *TaskAlertDTO {
+	return &TaskAlertDTO{
 		TaskData:       tskData,
 		UserData:       usrData,
 		Customizations: cstms,
-		alertType:      enums.ZemailType(0),
+		alertType:      enums.ZemailType(notificationType),
 	}
 }
 
-func (ts TaskRequestAlertDTO) String() string {
+func (ts TaskAlertDTO) String() string {
 	return fmt.Sprintf("%#v\n", ts)
 }
 
-func (ts TaskRequestAlertDTO) AlertType() int {
+func (ts TaskAlertDTO) AlertType() int {
 	return ts.alertType.Index()
 }
 
-func (ts TaskRequestAlertDTO) AlertTypeString() string {
+func (ts TaskAlertDTO) AlertTypeString() string {
 	return ts.alertType.String()
 }
 

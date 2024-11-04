@@ -78,6 +78,7 @@ type DbStoreConfig struct {
 	SkillCol        string `mapstructure:"skillCol"`
 	PeriodCol       string `mapstructure:"periodCol"`
 	TaskCol         string `mapstructure:"taskCol"`
+	VisitorCol      string `mapstructure:"visitorCol"`
 	AvailabilityCol string `mapstructure:"availablityCol"`
 	DbUsr           string `mapstructure:"default"`
 	DbPwd           string `mapstructure:"dbPwd"`

@@ -11,10 +11,12 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 )
 
-const TSKTXT_IDENTIFIER = "tsk-alert-txt"
-const TSKHTML_IDENTIFIER = "tsk-alert-html"
-const THKTXT_IDENTIFIER = "thk-alert-txt"
-const THKHTML_IDENTIFIER = "thk-alert-html"
+const CTSK_TXT_IDENTIFIER = "tsk-create-txt"
+const CTSK_HTML_IDENTIFIER = "tsk-create-html"
+const ALTSK_TXT_IDENTIFIER = "tsk-alt-txt"
+const ALTSK_HTML_IDENTIFIER = "tsk-alt-html"
+const THKTXT_IDENTIFIER = "thk-txt"
+const THKHTML_IDENTIFIER = "thk-html"
 
 type TxtNotificationTemplate *template.Template
 type HtmlNotificationTemplate *htemplate.Template
@@ -37,12 +39,13 @@ func NewErrEmailType(expType, actType enums.ZemailType) ErrEmailTypeErr {
 
 // TODO add customizations for colors
 
-func NewTaskAlertTmpl(alertInfo dtos.TaskRequestAlertDTO) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
-	txtNotification := template.New(fmt.Sprintf("%v%v", TSKTXT_IDENTIFIER, time.Now().UnixMilli()))
-	htmlNotification := htemplate.New(fmt.Sprintf("%v%v", TSKHTML_IDENTIFIER, time.Now().UnixMilli()))
+func NewTaskCreateAlertTmpl(alertInfo dtos.TaskAlertDTO) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
+	txtNotification := template.New(fmt.Sprintf("%v%v", CTSK_TXT_IDENTIFIER, time.Now().UnixMilli()))
+	htmlNotification := htemplate.New(fmt.Sprintf("%v%v", CTSK_HTML_IDENTIFIER, time.Now().UnixMilli()))
 
-	tmplateTxt := `Task Request Notification\n
-	The following task request:\n
+	tmplateTxt := `
+	Task Created Notification\n
+	The following Task:\n
 	Date: {{.FmtTaskInfo}}
 	Method: {{.Method}}
 	Details: {{.Details}}\n\n
@@ -63,7 +66,7 @@ func NewTaskAlertTmpl(alertInfo dtos.TaskRequestAlertDTO) (TxtNotificationTempla
 	<html>
 	<head>
 		<meta charset="UTF-8">
-		<title>Task Request Notification</title>
+		<title>Task Created Notification</title>
 	</head>
 	<body style="font-family: sans-serif, Arial; color:{{.TextColor}} background-color:{{.BackgroundColor}} line-height:1.6;">
 	{{if .Image}}
@@ -71,8 +74,8 @@ func NewTaskAlertTmpl(alertInfo dtos.TaskRequestAlertDTO) (TxtNotificationTempla
 		<img src="data:image/png;base64,{{.Image}}" alt="Banner image" style="width:100%; height:auto" />
 	</header>
 	{{end}}
-	<h1 style="margin-bottom: 8px;">Task Request Notification</h1><br>
-	<h3>The following task request:</h3><br>
+	<h1 style="margin-bottom: 8px;">Task Created Notification</h1><br>
+	<h3>The following Task:</h3><br>
 	<div style="margin: 4px;">
 		<p><strong>Date:</strong> {{.FmtTaskInfo}}</p>
 		<p><strong>Method:</strong> {{.Method}}</p>
@@ -166,19 +169,78 @@ func NewThanksNotificationTmpl(alertInfo dtos.ThanksAlertDTO) (TxtNotificationTe
 	return txtNoti, htmlNoti, nil
 }
 
+func NewTaskAlteredAlertTmpl() (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
+	txtNotification := template.New(fmt.Sprintf("%v%v", ALTSK_TXT_IDENTIFIER, time.Now().UnixMilli()))
+	htmlNotification := htemplate.New(fmt.Sprintf("%v%v", ALTSK_HTML_IDENTIFIER, time.Now().UnixMilli()))
+
+	tmplateTxt := `
+	{{.AlertTypeString()}} Notification\n
+
+	{{if .AlertType() == 1}}
+	The following Task has been edited:\n
+	{{end}
+	{{if .AlertType() == 2}}
+	The following Task has been deleted:\n
+	{{end}}
+	Date: {{.FmtTaskInfo}}
+	Method: {{.Method}}
+	Details: {{.Details}}\n\n
+	`
+	tmplateHtml := `
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Task Deleted Notification</title>
+	</head>
+	<body style="font-family: sans-serif, Arial; color:{{.TextColor}} background-color:{{.BackgroundColor}} line-height:1.6;">
+		{{if .Image}}
+		<header>
+			<img src="data:image/png;base64,{{.Image}}" alt="Banner image" style="width:100%; height:auto" />
+		</header>
+		{{end}}
+		<h1 style="margin-bottom: 8px;">
+		{{.AlertTypeString()}} Notification
+		</h1>
+		{{if .AlertType() == 1}}
+		<h3>The following Task has been edited:</h3>
+		{{end}}
+		{{if .AlertType() == 2}}
+		<h3>The following Task has been deleted:</h3><br>
+		{{end}}
+		<br>
+		<div style="margin: 4px;">
+			<p><strong>Date:</strong> {{.FmtTaskInfo}}</p>
+			<p><strong>Method:</strong> {{.Method}}</p>
+			<p><strong>Details:</strong> {{.Details}}</p>
+		</div>
+		</body>
+	</html>
+	`
+	txtNotification, err := txtNotification.Parse(tmplateTxt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	htmlNotification, err = htmlNotification.Parse(tmplateHtml)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return txtNotification, htmlNotification, err
+}
+
 // TODO on this templateFacotry method handle the errors for the casting from DTOers to the structs
 
 func TemplateFactory(emailData dtos.AlertDTOer) (TxtNotificationTemplate, HtmlNotificationTemplate, error) {
 	switch emailData.AlertTypeString() {
-	case "Task Request":
-		if data, ok := emailData.(dtos.TaskRequestAlertDTO); ok {
-			return NewTaskAlertTmpl(data)
+	case "Task Created":
+		if data, ok := emailData.(dtos.TaskAlertDTO); ok {
+			return NewTaskCreateAlertTmpl(data)
 		}
 		return nil, nil, NewErrEmailType(enums.ZemailType(0), enums.ZemailType(emailData.AlertType()))
-	case "Task Edit":
-		return nil, nil, errors.ErrUnsupported
-	case "Task Delete":
-		return nil, nil, errors.ErrUnsupported
+	case "Task Edited", "Task Deleted":
+		return NewTaskAlteredAlertTmpl()
 	case "Thank You":
 		if data, ok := emailData.(dtos.ThanksAlertDTO); ok {
 			return NewThanksNotificationTmpl(data)

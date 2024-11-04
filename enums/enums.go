@@ -3,14 +3,14 @@ package enums
 type ZemailType int
 
 const (
-	TaskRequest = iota
+	TaskCreated = iota
 	TaskEdit
 	TaskDelete
 	ThankYou
 )
 
 func (zt ZemailType) String() string {
-	return [...]string{"Task Request", "Thank You", "TaskEdit", "Task Delete"}[zt]
+	return [...]string{"Task Created", "Task Edited", "Task Deleteed", "Thank You"}[zt]
 }
 
 func (zt ZemailType) Index() int {
