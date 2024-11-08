@@ -24,7 +24,7 @@ const (
 )
 
 func (d Day) String() string {
-	return [...]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}[d-1]
+	return [...]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}[d]
 }
 
 func (d Day) Eindex() int {

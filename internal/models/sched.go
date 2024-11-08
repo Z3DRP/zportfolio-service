@@ -96,7 +96,7 @@ func createDailyHrTasks(tasks Tasklist, hr int, avbDays []int) map[int]Tasklist 
 }
 
 type Schedule struct {
-	Agenda         []Availability
+	Availability   []Availability
 	HourlyAgenda   []HourlySchedule
 	DaysAvailable  map[int]bool
 	HoursAvailable map[string]bool
@@ -104,7 +104,7 @@ type Schedule struct {
 
 func NewSchedule(avb []Availability, tasks Tasklist) *Schedule {
 	return &Schedule{
-		Agenda:         avb,
+		Availability:   avb,
 		HourlyAgenda:   newHourlyAgenda(avb, tasks),
 		DaysAvailable:  calcDailyAvailability(avb),
 		HoursAvailable: calcHourlyAvailability(avb),

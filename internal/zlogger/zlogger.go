@@ -10,6 +10,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type LogLevel int
+
+const (
+	Trace LogLevel = iota
+	Debug
+	Info
+	Warn
+	Error
+	Fatal
+	Panic
+)
+
+func (l LogLevel) String() string {
+	return [...]string{"Trace", "Debug", "Info", "Warn", "Error", "Fatal", "Panic"}[l]
+}
+
+func (l LogLevel) Index() int {
+	return int(l)
+}
+
 func defaultLogFile() *lumberjack.Logger {
 	return &lumberjack.Logger{
 		Filename:   fmt.Sprintf("%v/%v", config.LogPrefix, config.LogName),

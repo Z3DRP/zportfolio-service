@@ -27,6 +27,25 @@ func NewPeriod(length int, ptype enums.PeriodType, start, end time.Time, active 
 	}
 }
 
+func (p Period) FmtStart() string {
+	return fmt.Sprintf("%v/%v/%v", p.StartDate.Month(), p.StartDate.Day(), p.StartDate.Year())
+}
+
+func (p Period) FmtEnd() string {
+	return fmt.Sprintf("%v/%v/%v", p.EndDate.Month(), p.EndDate.Day(), p.EndDate.Year())
+}
+
+func (pd Period) GetDaysInPeriod() []time.Time {
+	daysInPeriod := make([]time.Time, 0)
+	for d := 0; d <= pd.Length; d++ {
+		nwDay := pd.StartDate.AddDate(0, 0, d)
+		if nwDay.Compare(pd.EndDate) != 1 {
+			daysInPeriod = append(daysInPeriod, nwDay)
+		}
+	}
+	return daysInPeriod
+}
+
 func (p Period) ViewAttr() string {
 	return fmt.Sprintf("start: %v, end: %v, length: %v, type: %v", p.StartDate, p.EndDate, p.Length, p.Type)
 }

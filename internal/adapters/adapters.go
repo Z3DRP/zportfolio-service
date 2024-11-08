@@ -1,9 +1,8 @@
 package adapters
 
 import (
+	"fmt"
 	"strings"
-
-	"github.com/Z3DRP/zportfolio-service/internal/models"
 )
 
 type TaskRequest struct {
@@ -14,11 +13,11 @@ type TaskData struct {
 	Method      string
 }
 
-func NewTaskData(task models.Task) TaskData {
+func NewTaskData(fmtDateTime, details, method string) TaskData {
 	return TaskData{
-		FmtTaskInfo: task.FormattedDateTime(),
-		Details:     task.Detail,
-		Method:      task.Method.String(),
+		FmtTaskInfo: fmtDateTime,
+		Details:     details,
+		Method:      method,
 	}
 }
 
@@ -40,6 +39,10 @@ func NewUserData(nm, cm, em, ph, roles string) UserData {
 	}
 }
 
+func (u UserData) String() string {
+	return fmt.Sprintf("%#v\n", u)
+}
+
 type EmailInfo struct {
 	Cc      []string
 	Body    string
@@ -52,6 +55,10 @@ func NewEmailInfo(cc, body string, uHtml bool) EmailInfo {
 		Body:    body,
 		UseHtml: uHtml,
 	}
+}
+
+func (e EmailInfo) String() string {
+	return fmt.Sprintf("%#v\n", e)
 }
 
 type Customizations struct {

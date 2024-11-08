@@ -41,7 +41,7 @@ func NewScheduleResponse(curPeriod Period, sched *Schedule) *ScheduleResponse {
 }
 
 func (sr *ScheduleResponse) PrintRes() string {
-	return fmt.Sprintf("CurrentPeriod: %v, Agenda: %v", sr.CurrentPeriod, sr.Agenda.Agenda)
+	return fmt.Sprintf("CurrentPeriod: %v, Agenda: %v", sr.CurrentPeriod, sr.Agenda.Availability)
 }
 
 type TaskResponse struct {

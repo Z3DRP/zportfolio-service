@@ -6,9 +6,10 @@ import (
 	"math/big"
 	"net/http"
 
-	adp "github.com/Z3DRP/zportfolio-service/internal/adapters"
+	"github.com/Z3DRP/zportfolio-service/enums"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
-	"github.com/Z3DRP/zportfolio-service/internal/models"
+	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
+	"github.com/gorilla/websocket"
 )
 
 func GetIP(r *http.Request) string {
@@ -61,10 +62,76 @@ func GenToken() ([]byte, error) {
 	return asci, nil
 }
 
-func ConvertTaskRequest(task models.Task, tr dtos.TaskRequestDTO) (adp.TaskData, adp.UserData, adp.EmailInfo, adp.Customizations) {
-	tskData := adp.NewTaskData(task)
-	usrData := adp.NewUserData(tr.UsrName, tr.Company, tr.Email, tr.Phone, tr.Roles)
-	emlInfo := adp.NewEmailInfo(tr.Cc, tr.Body, tr.UseHtml)
-	custInfo := adp.NewCustomizations()
-	return tskData, usrData, emlInfo, *custInfo
+func SendMessage(conn *websocket.Conn, msg dtos.Message) error {
+	err := conn.WriteJSON(msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SendErrMessage(conn *websocket.Conn, e error, conCode int) error {
+	emsg := dtos.SocketErrMsg{
+		ErrMsg:      e.Error(),
+		ConnCode:    conCode,
+		CodeMessage: enums.WsConnCode(conCode).String(),
+	}
+
+	err := conn.WriteJSON(emsg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func WriteCloseMessage(conn *websocket.Conn, e error, conCode int) error {
+	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(conCode, e.Error()))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func WriteMessage(conn *websocket.Conn, msg string) error {
+	err := conn.WriteMessage(websocket.TextMessage, []byte(msg))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func LogError(logger *zlogger.Zlogrus, e error, lvl zlogger.LogLevel) {
+	msg := fmt.Sprintf("%v", e)
+	switch lvl {
+	case zlogger.Trace:
+		logger.MustTrace(msg)
+	case zlogger.Debug:
+		logger.MustDebug(msg)
+	case zlogger.Info:
+		logger.MustInfo(msg)
+	case zlogger.Fatal:
+		logger.MustFatal(msg)
+	case zlogger.Error:
+		logger.MustError(msg)
+	case zlogger.Panic:
+		logger.MustPanic(msg)
+	}
+}
+
+func WriteLog(logger *zlogger.Zlogrus, s string, lvl zlogger.LogLevel) {
+	msg := fmt.Sprintf("%v", s)
+	switch lvl {
+	case zlogger.Trace:
+		logger.MustTrace(msg)
+	case zlogger.Debug:
+		logger.MustDebug(msg)
+	case zlogger.Info:
+		logger.MustInfo(msg)
+	case zlogger.Fatal:
+		logger.MustFatal(msg)
+	case zlogger.Error:
+		logger.MustError(msg)
+	case zlogger.Panic:
+		logger.MustPanic(msg)
+	}
 }

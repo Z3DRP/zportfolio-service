@@ -55,7 +55,7 @@ func (e ErrUnknown) Unwrap() error {
 
 // TODO pass in user customizations instead of using default
 func SendTaskNotificationEmail(ctx context.Context, task models.Task, usrData adapters.UserData, emlInfo adapters.EmailInfo, notiType enums.ZemailType) error {
-	tskData := adapters.NewTaskData(task)
+	tskData := adapters.NewTaskData(task.FormattedDateTime(), task.Detail, task.Method.String())
 	alertDTO := dtos.NewTaskNotificationDto(tskData, usrData, *adapters.NewCustomizations(), notiType)
 	emailRequestDto := dtos.NewZemailRequestDto(
 		recipientAddr,

@@ -45,9 +45,9 @@ func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
 	mux.HandleFunc("GET /about", getAbout)
 	mux.HandleFunc("POST /zypher", getZypher)
 	mux.HandleFunc("GET /schedule", handleScheduleWebsocket)
-	mux.HandleFunc("POST /task", handleCreateTask)
-	mux.HandleFunc("PUT /task", handleEditTask)
-	mux.HandleFunc("DELETE /task", handleRemoveTask)
+	// mux.HandleFunc("POST /task", handleCreateTask)
+	// mux.HandleFunc("PUT /task", handleEditTask)
+	// mux.HandleFunc("DELETE /task", handleRemoveTask)
 
 	server := &http.Server{
 		Addr:         sconfig.Address,
@@ -62,9 +62,14 @@ func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
 // TODO update dtos to accept json and in each Task event handler use make any refactors needed
 func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
+	uip := utils.GetIP(r)
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("could not upgrade http connection:: %v", err))
-		http.Error(w, fmt.Sprintf("could not upgrade http connection:: %v", err), http.StatusInternalServerError)
+		e := utils.NewWebSocketErr("upgrade http connection to websocket", err)
+		utils.LogError(logger, e, zlg.Debug)
+		utils.SendErrMessage(conn, e, enums.ProtocolErr)
+		if err != nil {
+
+		}
 		return
 	}
 	defer conn.Close()
@@ -74,8 +79,9 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 		err := conn.ReadJSON(&msg)
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("could not read websocket message:: %v", err))
-			emsg := dtos.ErrMessage{Err: err}
-			err = conn.WriteJSON(emsg)
+			e := utils.NewWebSocketErr("read websocket message", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.ProtocolErr)
 			if err != nil {
 				conn.Close()
 			}
@@ -84,20 +90,55 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 		switch msg.Event {
 		case "getSchedule":
-			handleGetSchedule(w, r)
+			var payload dtos.PeriodPayloadDTO
+			err = json.Unmarshal(msg.Payload, &payload)
+			if err != nil {
+				e := utils.NewJsonDecodeErr(string(msg.Payload), err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.UnsupportedData)
+				return
+			}
+			handleGetSchedule(r.Context(), conn, payload, uip)
+
 		case "createTask":
-			handleCreateTask(w, r)
+			var pload dtos.TaskPayloadDTO
+			err = json.Unmarshal(msg.Payload, &pload)
+			if err != nil {
+				e := utils.NewJsonDecodeErr(msg.Payload, err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.UnsupportedData)
+				return
+			}
+			handleCreateTask(r.Context(), conn, msg.Payload, uip)
 		case "editTask":
-			handleEditTask(w, r)
+			var pload dtos.TaskPayloadDTO
+			err = json.Unmarshal(msg.Payload, &pload)
+			if err != nil {
+				e := utils.NewJsonDecodeErr(msg.Payload, err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.UnsupportedData)
+				return
+			}
+			handleEditTask(r.Context(), conn, msg.Payload, uip)
 		case "deleteTask":
-			handleRemoveTask(w, r)
+			var pload dtos.TaskDeletePaylaod
+			err := json.Unmarshal(msg.Payload, pload)
+			if err != nil {
+				e := utils.NewJsonDecodeErr(msg.Payload, err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.UnsupportedData)
+				return
+			}
+			handleRemoveTask(r.Context(), conn, msg.Payload, uip)
 		default:
 			eventErr := struct {
-				Err   string
-				Event string
+				Err     string
+				Event   string
+				ConCode int
 			}{
-				Err:   "unknown event",
-				Event: msg.Event,
+				Err:     "unknown event",
+				Event:   msg.Event,
+				ConCode: enums.UnsupportedData,
 			}
 
 			logger.MustDebug(fmt.Sprintf("%v: %v", eventErr.Err, eventErr.Event))
@@ -111,146 +152,165 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func handleGetSchedule(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func handleGetSchedule(ctx context.Context, conn *websocket.Conn, data dtos.PeriodPayloadDTO, uip string) {
 	select {
-	case <-r.Context().Done():
-		logger.MustDebug(fmt.Sprintf("request: %s, method: %s, timed out", r.URL, r.Method))
-		http.Error(w, "request time out", http.StatusRequestTimeout)
-		return
+	case <-ctx.Done():
+		e := utils.NewTimeoutErr("get schedule", nil)
+		utils.LogError(logger, e, zlg.Debug)
+		if err := utils.SendErrMessage(conn, e, enums.Timeout); err != nil {
+			// Try to write message of why it is closing
+			_ = utils.WriteCloseMessage(conn, e, enums.Timeout)
+		}
+		conn.Close()
 	default:
 		var scheduleData models.Responser
-		cacheClient, err := dacstore.NewRedisClient(r.Context())
+		cacheClient, err := dacstore.NewRedisClient(ctx)
 		if err != nil {
-			logger.MustDebug(fmt.Sprintf("cache error: %s", err))
-			http.Error(w, "request cache error", http.StatusInternalServerError)
+			e := &dacstore.ErrRedisConnect{ClientId: cacheClient.ClientID(ctx), Err: err}
+			utils.LogError(logger, e, zlg.Debug)
+			if e2 := utils.SendErrMessage(conn, e, enums.CacheError); err != nil {
+				_ = utils.WriteCloseMessage(conn, e2, enums.CacheError)
+				conn.Close()
+			}
 			return
 		}
 		// NOTE period data must be a iso string
-		pstart := r.URL.Query().Get("pstart")
-		pend := r.URL.Query().Get("pend")
-		periodStart, err := time.Parse(time.RFC3339, pstart)
+		periodStart, err := time.Parse(time.RFC3339, data.PeriodStart)
 		if err != nil {
-			logger.MustDebug(fmt.Sprintf("error parsing period start: %v", err))
-			http.Error(w, "error parsing period start", http.StatusBadRequest)
+			e := utils.NewTimeParseErr(data.PeriodStart, "Period Start", err)
+			utils.LogError(logger, e, zlg.Debug)
+			if e2 := utils.SendErrMessage(conn, e, enums.UnsupportedData); e2 != nil {
+				_ = utils.WriteCloseMessage(conn, e, enums.UnsupportedData)
+				conn.Close()
+			}
 			return
 		}
 
-		periodEnd, err := time.Parse(time.RFC3339, pend)
+		periodEnd, err := time.Parse(time.RFC3339, data.PeriodEnd)
 		if err != nil {
-			logger.MustDebug(fmt.Sprintf("error parsing period end: %v", err))
-			http.Error(w, "error parsing period end", http.StatusBadRequest)
+			e := utils.NewTimeParseErr(data.PeriodStart, "Period End", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.UnsupportedData)
 			return
 		}
 
-		scheduleData, err = dacstore.CheckScheduleData(r.Context(), cacheClient, periodStart, periodEnd)
+		scheduleData, err = dacstore.CheckScheduleData(ctx, cacheClient, periodStart, periodEnd)
 		var noResults *dacstore.ErrNoCacheResult
 
 		if err != nil {
-			logger.MustDebug(fmt.Sprintf("error reading schedule cache: %v", err))
 			if !errors.As(err, &noResults) {
-				logger.MustDebug(fmt.Sprintf("an unexpected error occurred while reading schedule cache: %v", err))
-				http.Error(w, "an unexpected error occurred while reading schedule cache", http.StatusInternalServerError)
-				return
+				e := utils.NewCacheOpErr("read", "schedule", err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.CacheError)
 			}
+			utils.WriteLog(logger, "schedule cache had no values", zlg.Debug)
+			return
 		}
 
 		if scheduleData == nil {
-			scheduleData, err = controller.FetchSchedule(r.Context(), periodStart, periodEnd)
+			scheduleData, err = controller.FetchSchedule(ctx, periodStart, periodEnd)
 			if err != nil {
 				periodStr := fmt.Sprintf("Period [start: %v, end: %v]", periodStart.String(), periodEnd.String())
-				logger.MustDebug(fmt.Sprintf("error reading schedule for %v from database: %v", periodStr, err))
-				emsg := fmt.Sprintf("coult not retrieve schedule for %v: %v", periodStr, err)
-				http.Error(w, emsg, http.StatusInternalServerError)
+				e := utils.ErrFetchRecords{RecordType: "schedule", Msg: periodStr, Err: err}
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.DatabaseError)
 				return
 			}
 
 			if scheduleData != nil {
-				err = dacstore.SetScheduleData(r.Context(), cacheClient, periodStart, periodEnd, scheduleData)
+				err = dacstore.SetScheduleData(ctx, cacheClient, periodStart, periodEnd, scheduleData)
 			}
 
 			if err != nil {
-				logger.MustDebug(fmt.Sprintf("an error occurred while cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err))
-				http.Error(w, fmt.Sprintf("could not cache schedule for Period: [start: %v, end: %v]:: %v", periodStart.String(), periodEnd.String(), err), http.StatusInternalServerError)
+				e := utils.NewCacheOpErr("write", "schedule", err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.CacheError)
 				return
 			}
 		}
 
 		if sdata, ok := scheduleData.(*models.ScheduleResponse); ok {
-			if err := json.NewEncoder(w).Encode(sdata); err != nil {
-				logger.MustDebug(fmt.Sprintf("could not encode schedule response:: %v", err))
-				http.Error(w, fmt.Sprintf("could not encode schedule response:: %v", err), http.StatusInternalServerError)
-				return
+			rawScheduleDto, err := json.Marshal(dtos.NewScheduleDto(sdata))
+			if err != nil {
+				e := utils.NewJsonEncodeErr(dtos.NewScheduleDto(sdata), err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.JsonEncodeError)
 			}
+			msg := dtos.Message{
+				Event:   "getSchedule",
+				Payload: rawScheduleDto,
+			}
+
+			utils.SendMessage(conn, msg)
+			if err != nil {
+				// still try to write err msg
+				conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(enums.ServerError, "could not write json data to connection"))
+				conn.Close()
+			}
+
 		} else {
-			logger.MustDebug(fmt.Sprintf("could not cast type: [%T] into type schedule response", scheduleData))
-			http.Error(w, fmt.Sprintf("could not cast type: [%T] into type schedule response", scheduleData), http.StatusInternalServerError)
-			return
+			//TODO type case error
+			e := utils.NewTypeCastErr(scheduleData, models.ScheduleResponse{}, nil)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.WriteCloseMessage(conn, e, enums.TypeCastErr)
 		}
 
 	}
 }
 
-func handleCreateTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskPayloadDTO, uip string) {
 	select {
-	case <-r.Context().Done():
-		// logger.MustDebug(fmt.Sprintf("request: %s method: %s timed out", r.URL, r.Method))
-		// http.Error(w, "request time out", http.StatusRequestTimeout)
-		handleRequestTimeout(r, w)
-		return
+	case <-ctx.Done():
+		e := utils.NewTimeoutErr("create task", nil)
+		utils.LogError(logger, e, zlg.Debug)
+		if err := utils.SendErrMessage(conn, e, enums.Timeout); err != nil {
+			utils.WriteCloseMessage(conn, e, enums.Timeout)
+		}
+		conn.Close()
 	default:
-		// var tsk map[string]interface{}
-		tsk := dtos.TaskRequestDTO{}
 		settings, err := config.ReadZypherSettings()
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
-			// http.Error(w, fmt.Sprintf("an error occurred while reading zypher config:: %v", err), http.StatusInternalServerError)
-			handleConfigReadErr(config.NewConfigReadError("zypher", err), w)
+			e := utils.NewConfigFileErr("zypher config", err)
+			utils.LogError(logger, e, zlg.Debug)
+			if e2 := utils.SendErrMessage(conn, e, enums.ServerError); e2 != nil {
+				_ = utils.WriteMessage(conn, e.Error())
+				conn.Close()
+			}
 			return
 		}
 
-		cacheClient, err := dacstore.NewRedisClient(r.Context())
+		cacheClient, err := dacstore.NewRedisClient(ctx)
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("could not connect to redis:: %v", err))
-			// http.Error(w, fmt.Sprintf("could not connect to redis:: %v", err), http.StatusInternalServerError)
-			handleRedisConErr(dacstore.NewRedisConnErr(cacheClient.ClientID(r.Context()), err), w)
+			e := utils.NewCacheOpErr("read", "schedule", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.CacheError)
 			return
 		}
 
-		err = json.NewDecoder(r.Body).Decode(&tsk)
+		taskStart, err := time.Parse(time.RFC3339, data.Start)
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("could not parse create task request body:: %v", err))
-			// http.Error(w, fmt.Sprintf("could not parse create task request body:: %v", err), http.StatusInternalServerError)
-			handleJsonDecodeErr("create task", err, w)
+			e := utils.NewTimeParseErr(data.Start, "start date", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.TimeParseErr)
 			return
 		}
 
-		taskStart, err := time.Parse(time.RFC3339, tsk.Start)
+		taskEnd, err := time.Parse(time.RFC3339, data.End)
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("invalid type for task start date:: %v", err))
-			// http.Error(w, fmt.Sprintf("invalid type for task start date:: %v", err), http.StatusBadRequest)
-			handleTaskTimeParseErr("start", err, w)
+			e := utils.NewTimeParseErr(data.End, "end date", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.TimeParseErr)
 			return
 		}
 
-		taskEnd, err := time.Parse(time.RFC3339, tsk.End)
-		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("invalid type for task end date:: %v", err))
-			// http.Error(w, fmt.Sprintf("invalid type for task end date:: %v", err), http.StatusBadRequest)
-			handleTaskTimeParseErr("end", err, w)
-			return
-		}
-
-		uip := utils.GetIP(r)
-		uid, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
+		uid, err := dacstore.CheckUserData(ctx, cacheClient, uip)
 		var noResults *dacstore.ErrNoCacheResult
 
 		if err != nil {
 			if !errors.As(err, &noResults) {
-				// logger.MustDebug(fmt.Sprintf("error occurred while reading user cache:: %v", err))
-				// http.Error(w, fmt.Sprintf("error occurred while reading user cache:: %v", err), http.StatusInternalServerError)
-				handleCacheReadErr("user", err, w)
+				e := utils.NewCacheOpErr("reading", "user", err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.CacheError)
 				return
 			}
 		}
@@ -259,38 +319,39 @@ func handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
 			// add user to cache so when trying to edit tasks id can be checked
 			if err != nil {
-				// logger.MustDebug(fmt.Sprintf("could not generate user id:: %v", err))
-				// http.Error(w, fmt.Sprintf("could not generate user id:: %v", err), http.StatusInternalServerError)
-				handleIdGeneratorErr("user", err, w)
+				e := utils.NewIdGenErr("user", err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.ServerError)
 				return
 			}
 
-			if err = dacstore.SetUserData(r.Context(), cacheClient, uip, uid); err != nil {
-				// logger.MustDebug(fmt.Sprintf("error occurred while creating user cache:: %v", err))
-				// http.Error(w, fmt.Sprintf("error occurred while creating user cache:: %v", err), http.StatusInternalServerError)
-				handleCacheSetErr("user", err, w)
+			if err = dacstore.SetUserData(ctx, cacheClient, uip, uid); err != nil {
+				e := utils.NewCacheOpErr("writing", "user", err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.CacheError)
 				return
 			}
 		}
 
-		nwTask, err := controller.CreateTask(r.Context(), taskStart, taskEnd, tsk.Detail, uid)
+		nwTask, err := controller.CreateTask(ctx, taskStart, taskEnd, tsk.Detail, uid)
 		if err != nil {
-			// logger.MustDebug(fmt.Sprintf("error occurred while usr: %v tried creating task:: %v", uid, err))
-			// http.Error(w, fmt.Sprintf("error occurred while usr: %v tried creating task:: %v", uid, err), http.StatusInternalServerError)
-			handleTaskActionErr("createing", err, uid, w)
+			e := utils.NewDbErr(enums.Insert.String(), "user", err)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.DatabaseError)
 			return
 		}
 
 		if tskRes, ok := nwTask.(*models.TaskInsertResponse); ok {
 			// TODO call SendTaskRequestNotificationEmail
-			usrData := adapters.NewUserData(tsk.UsrName, tsk.Company, tsk.Email, tsk.Phone, tsk.Roles)
-			emlData := adapters.NewEmailInfo(tsk.Cc, tsk.Body, tsk.UseHtml)
-			err = controller.SendTaskNotificationEmail(r.Context(), *tskRes.NwTask, usrData, emlData, enums.ZemailType(0))
+			usrData := adapters.NewUserData(data.UsrName, data.Company, data.Email, data.Phone, data.Roles)
+			emlData := adapters.NewEmailInfo(data.Cc, data.Body, data.UseHtml)
+			err = controller.SendTaskNotificationEmail(ctx, *tskRes.NwTask, usrData, emlData, enums.ZemailType(0))
 			notificationSent := true
 
 			if err != nil {
 				notificationSent = false
-				logger.MustDebug(fmt.Sprintf("failed to send task create notification:: %v", err))
+				e := utils.NewNotificationErr(emlData.String(), usrData.String(), err)
+				utils.LogError(logger, e, zlg.Debug)
 			}
 
 			response := map[string]any{
@@ -300,9 +361,9 @@ func handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			}
 
 			go func(udata adapters.UserData, eData adapters.EmailInfo) {
-				err = controller.SendThanksNotification(r.Context(), udata, eData)
+				err = controller.SendThanksNotification(ctx, udata, eData)
 				if err != nil {
-					logger.MustDebug(fmt.Sprintf("could not send thank you notification to '%v' at '%v", udata.Name, udata.Email))
+					utils.LogError(logger, fmt.Errorf("could not send thank you notification to '%v' at '%v'", udata.Name, udata.Email), zlg.Debug)
 				}
 			}(usrData, emlData)
 
@@ -322,7 +383,7 @@ func handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleRemoveTask(w http.ResponseWriter, r *http.Request) {
+func handleRemoveTask(ctx context.Context, conn *websocket.Conn, data interface{}, uip string) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
@@ -385,7 +446,7 @@ func handleRemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleEditTask(w http.ResponseWriter, r *http.Request) {
+func handleEditTask(ctx context.Context, conn *websocket.Conn, data interface{}, uip string) {
 	w.Header().Set("Content-Type", "application/json")
 
 	taskId := r.URL.Query().Get("taskid")
