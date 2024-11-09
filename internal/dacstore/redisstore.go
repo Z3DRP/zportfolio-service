@@ -7,7 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Z3DRP/zportfolio-service/internal/adapters"
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
+	"github.com/Z3DRP/zportfolio-service/internal/utils"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -163,8 +166,16 @@ func CheckScheduleData(ctx context.Context, client *redis.Client, pstart, pend t
 	return &data, nil
 }
 
-func SetUserData(ctx context.Context, client *redis.Client, k, val string) error {
-	err := client.Set(ctx, k, val, 0).Err()
+func SetUserData(ctx context.Context, client *redis.Client, name, company, phone, eml, roles, ip, k string) error {
+	usr := adapters.NewUserData(name, company, eml, phone, roles)
+	userDTO := dtos.NewUserDto(usr, ip, k)
+	data, err := json.Marshal(userDTO)
+
+	if err != nil {
+		return utils.NewJsonEncodeErr(usr, err)
+	}
+
+	err = client.Set(ctx, k, data, 0).Err()
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("error caching user data:: %v", err))
 		return fmt.Errorf("error caching user data:: %w", err)
@@ -172,15 +183,21 @@ func SetUserData(ctx context.Context, client *redis.Client, k, val string) error
 	return nil
 }
 
-func CheckUserData(ctx context.Context, client *redis.Client, k string) (string, error) {
+func CheckUserData(ctx context.Context, client *redis.Client, k string) (dtos.DTOer, error) {
 	val, err := client.Get(ctx, k).Result()
 	if err != nil {
 		if err != redis.Nil {
 			logger.MustDebug(fmt.Sprintf("unexpected user cache error:: %v", err))
-			return "", fmt.Errorf("unexpected user cache error:: %w", err)
+			return nil, fmt.Errorf("unexpected user cache error:: %w", err)
 		}
-		return "", NewNoCacheResultErr(client.ClientID(ctx), k, err)
+		return nil, NewNoCacheResultErr(client.ClientID(ctx), k, err)
 	}
 
-	return val, nil
+	var data dtos.UserDto
+	err = json.Unmarshal([]byte(val), &data)
+	if err != nil {
+		logger.MustDebug(fmt.Sprintf("error unmarshalling user data: %v", err))
+		return nil, fmt.Errorf("unexpected user cache error:: %w", err)
+	}
+	return &data, nil
 }

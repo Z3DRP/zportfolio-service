@@ -143,7 +143,7 @@ func CreateTask(ctx context.Context, start, end time.Time, details string, usrId
 		return nil, fmt.Errorf("failed to create task store:: %w", err)
 	}
 
-	tid, err := utils.GenerateTID()
+	tid, err := utils.GenerateID("task")
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("failed to generate TID:: %v", err))
 		return nil, fmt.Errorf("failed to generate TID:: %v", err)

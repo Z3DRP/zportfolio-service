@@ -228,6 +228,24 @@ type TaskDeletePaylaod struct {
 	Tid string
 }
 
+type UserDto struct {
+	adp.UserData
+	Ip  string
+	Uid string
+}
+
+func NewUserDto(usr adp.UserData, ip, uid string) UserDto {
+	return UserDto{
+		UserData: usr,
+		Ip:       ip,
+		Uid:      uid,
+	}
+}
+
+func (u UserDto) String() string {
+	return fmt.Sprintf("%#v\n", u)
+}
+
 func Get12HrFmt(t time.Time) string {
 	hr := convertHr(t.Hour())
 	antem := getAntemeridiem(hr)

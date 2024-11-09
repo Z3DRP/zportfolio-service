@@ -109,7 +109,7 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 				utils.SendErrMessage(conn, e, enums.UnsupportedData)
 				return
 			}
-			handleCreateTask(r.Context(), conn, msg.Payload, uip)
+			handleCreateTask(r.Context(), conn, pload, uip)
 		case "editTask":
 			var pload dtos.TaskPayloadDTO
 			err = json.Unmarshal(msg.Payload, &pload)
@@ -129,7 +129,7 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 				utils.SendErrMessage(conn, e, enums.UnsupportedData)
 				return
 			}
-			handleRemoveTask(r.Context(), conn, msg.Payload, uip)
+			handleRemoveTask(r.Context(), conn, pload, uip)
 		default:
 			eventErr := struct {
 				Err     string
@@ -244,7 +244,7 @@ func handleGetSchedule(ctx context.Context, conn *websocket.Conn, data dtos.Peri
 			utils.SendMessage(conn, msg)
 			if err != nil {
 				// still try to write err msg
-				conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(enums.ServerError, "could not write json data to connection"))
+				utils.WriteCloseMessage(conn, err, enums.ServerError)
 				conn.Close()
 			}
 
@@ -281,9 +281,8 @@ func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskP
 
 		cacheClient, err := dacstore.NewRedisClient(ctx)
 		if err != nil {
-			e := utils.NewCacheOpErr("read", "schedule", err)
-			utils.LogError(logger, e, zlg.Debug)
-			utils.SendErrMessage(conn, e, enums.CacheError)
+			utils.LogError(logger, err, zlg.Debug)
+			utils.SendErrMessage(conn, err, enums.CacheError)
 			return
 		}
 
@@ -303,7 +302,7 @@ func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskP
 			return
 		}
 
-		uid, err := dacstore.CheckUserData(ctx, cacheClient, uip)
+		usrInfo, err := dacstore.CheckUserData(ctx, cacheClient, uip)
 		var noResults *dacstore.ErrNoCacheResult
 
 		if err != nil {
@@ -315,17 +314,25 @@ func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskP
 			}
 		}
 
-		if uid == "" {
-			uid, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
+		usr, ok := usrInfo.(dtos.UserDto)
+		if !ok {
+			e := utils.NewTypeCastErr(usrInfo, dtos.UserDto{}, nil)
+			utils.LogError(logger, e, zlg.Debug)
+			utils.SendErrMessage(conn, e, enums.ServerError)
+			return
+		}
+
+		var uidKey string
+		if usr.Uid == "" {
+			uidKey, err = controller.CalculateZypher(uip, settings.Shift, settings.ShiftCount, settings.HashCount, settings.Alternate, settings.IgnSpace, settings.RestrictHash)
 			// add user to cache so when trying to edit tasks id can be checked
 			if err != nil {
-				e := utils.NewIdGenErr("user", err)
-				utils.LogError(logger, e, zlg.Debug)
-				utils.SendErrMessage(conn, e, enums.ServerError)
+				utils.LogError(logger, err, zlg.Debug)
+				utils.SendErrMessage(conn, err, enums.ServerError)
 				return
 			}
 
-			if err = dacstore.SetUserData(ctx, cacheClient, uip, uid); err != nil {
+			if err = dacstore.SetUserData(ctx, cacheClient, data.UsrName, data.Company, data.Phone, data.Email, data.Roles, uip, uidKey); err != nil {
 				e := utils.NewCacheOpErr("writing", "user", err)
 				utils.LogError(logger, e, zlg.Debug)
 				utils.SendErrMessage(conn, e, enums.CacheError)
@@ -333,7 +340,7 @@ func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskP
 			}
 		}
 
-		nwTask, err := controller.CreateTask(ctx, taskStart, taskEnd, tsk.Detail, uid)
+		nwTask, err := controller.CreateTask(ctx, taskStart, taskEnd, data.Detail, usr.Uid)
 		if err != nil {
 			e := utils.NewDbErr(enums.Insert.String(), "user", err)
 			utils.LogError(logger, e, zlg.Debug)
@@ -367,80 +374,140 @@ func handleCreateTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskP
 				}
 			}(usrData, emlData)
 
-			if err := json.NewEncoder(w).Encode(response); err != nil {
-				// logger.MustDebug(fmt.Sprintf("could not encode task response into json:: %v", err))
-				// http.Error(w, fmt.Sprintf("could not encode task response into json:: %v", err), http.StatusInternalServerError)
-				handleJsonEncodeErr("task insert response", err, w)
-				return
+			pload, err := json.Marshal(response)
+			if err != nil {
+				e := utils.NewJsonEncodeErr(response, err)
+				utils.LogError(logger, e, zlg.Debug)
+				utils.SendErrMessage(conn, e, enums.JsonEncodeError)
+			}
+
+			msg := dtos.Message{Event: "createTask", Payload: pload}
+			err = utils.SendMessage(conn, msg)
+			if err != nil {
+				_ = utils.WriteCloseMessage(conn, err, enums.JsonEncodeError)
+				conn.Close()
 			}
 
 		} else {
-			// logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err))
-			// http.Error(w, fmt.Sprintf("could not cast Type[%T] as Task Insert Response:: %v", nwTask, err), http.StatusInternalServerError)
-			handleTypeCaseErr("task insert response", nwTask, err, w)
+			e := utils.NewTypeCastErr(nwTask, models.TaskInsertResponse{}, nil)
+			utils.LogError(logger, e, zlg.Debug)
+			if err = utils.SendErrMessage(conn, e, enums.TypeCastErr); err != nil {
+				_ = utils.WriteCloseMessage(conn, err, enums.TypeCastErr)
+			}
 			return
 		}
 	}
 }
 
-func handleRemoveTask(ctx context.Context, conn *websocket.Conn, data interface{}, uip string) {
-	w.Header().Set("Content-Type", "application/json")
+func handleRemoveTask(ctx context.Context, conn *websocket.Conn, data dtos.TaskDeletePaylaod, uip string) {
 	select {
-	case <-r.Context().Done():
-		logger.MustDebug(fmt.Sprintf("request: %s, method: %s, timed out", r.URL, r.Method))
-		http.Error(w, "request time out", http.StatusRequestTimeout)
-		return
+	case <-ctx.Done():
+		e := utils.NewTimeoutErr("delete task", nil)
+		utils.LogError(logger, e, zlg.Debug)
+		if err := utils.SendErrMessage(conn, e, enums.Timeout); err != nil {
+			_ = utils.WriteCloseMessage(conn, e, enums.Timeout)
+		}
+		conn.Close()
 	default:
-		tskId := r.URL.Query().Get("taskid")
-		if tskId == "" {
-			logger.MustDebug("invalid task delete request:: Missing task id")
-			http.Error(w, "invalid task delete request:: Missing task id", http.StatusBadRequest)
+		if data.Tid == "" {
+			e := utils.NewMissingDataErr("task id", "string", nil)
+			utils.LogError(logger, e, zlg.Debug)
+			if err := utils.SendErrMessage(conn, e, enums.MissingData); err != nil {
+				_ = utils.WriteCloseMessage(conn, e, enums.ServerError)
+			}
+			conn.Close()
 			return
 		}
 
-		var userId string
-		err := json.NewDecoder(r.Body).Decode(&userId)
-		if err != nil {
-			logger.MustDebug(fmt.Sprintf("could not json decode request body:: %v", err))
-			http.Error(w, fmt.Sprintf("could not json decode request body:: %v", err), http.StatusInternalServerError)
+		if data.Uid == "" {
+			e := utils.NewMissingDataErr("user id", "string", nil)
+			utils.LogError(logger, e, zlg.Debug)
+			if err := utils.SendErrMessage(conn, e, enums.MissingData); err != nil {
+				_ = utils.WriteCloseMessage(conn, e, enums.ServerError)
+			}
+			conn.Close()
 			return
 		}
 
-		if cacheClient, err := dacstore.NewRedisClient(r.Context()); err != nil {
-			logger.MustDebug(fmt.Sprintf("could not connect to redis client:: %v", err))
-			http.Error(w, fmt.Sprintf("could not connect to redis client:: %v", err), http.StatusInternalServerError)
-			return
+		if cacheClient, err := dacstore.NewRedisClient(ctx); err != nil {
+			e := dacstore.NewRedisConnErr(cacheClient.ClientID(ctx), err)
+			utils.LogError(logger, e, zlg.Debug)
+			if err = utils.SendErrMessage(conn, e, enums.CacheError); err != nil {
+				_ = utils.WriteCloseMessage(conn, e, enums.ServerError)
+				conn.Close()
+				return
+			}
 		} else {
-			uid, err := dacstore.CheckUserData(r.Context(), cacheClient, utils.GetIP(r))
+			usrInfo, err := dacstore.CheckUserData(ctx, cacheClient, uip)
 			var noResults *dacstore.ErrNoCacheResult
 			if err != nil {
 				if errors.As(err, &noResults) {
-					logger.MustDebug("invalid remove request user does not own any tasks")
-					http.Error(w, "invalid remove request user does not own any tasks", http.StatusBadRequest)
+					e := utils.NewInvalidOperationErr("task remove", "user does not own any tasks", err)
+					utils.LogError(logger, e, zlg.Debug)
+					utils.SendErrMessage(conn, e, enums.ServerError)
 				}
-				logger.MustDebug(fmt.Sprintf("error checking user cache:: %v", err))
-				http.Error(w, fmt.Sprintf("error checking user cache:: %v", err), http.StatusInternalServerError)
+				utils.LogError(logger, err, zlg.Debug)
+				_ = utils.SendErrMessage(conn, err, enums.CacheError)
 				return
 			}
 
-			if userId != uid {
-				logger.MustDebug("invalid remove request user must own task to remove it")
-				http.Error(w, "invalid remove request user must own task to remove it", http.StatusBadRequest)
+			usr, ok := usrInfo.(dtos.UserDto)
+			if !ok {
+				e := utils.NewTypeCastErr(usrInfo, dtos.UserDto{}, nil)
+				utils.LogError(logger, e, zlg.Debug)
+				_ = utils.SendErrMessage(conn, e, enums.ServerError)
 				return
 			}
 
-			delCount, err := controller.RemoveTask(r.Context(), tskId, uid)
+			if data.Uid != usr.Uid {
+				e := utils.NewInvalidOperationErr("task removal", "user must own task to remove it", nil)
+				utils.LogError(logger, e, zlg.Debug)
+				_ = utils.SendErrMessage(conn, e, enums.PermissionErr)
+				return
+			}
+
+			delCount, err := controller.RemoveTask(ctx, data.Tid, usr.Uid)
 			if err != nil {
-				logger.MustDebug(fmt.Sprintf("error deleting task:: %v", err))
-				http.Error(w, fmt.Sprintf("error deleting task:: %v", err), http.StatusInternalServerError)
+				dbErr := utils.NewDbErr("delete", "task", err)
+				utils.LogError(logger, dbErr, zlg.Debug)
+				e := utils.SendErrMessage(conn, dbErr, enums.DatabaseError)
+				if e != nil {
+					fts := utils.NewFaildToSendErr("after delete task error", e)
+					_ = utils.WriteCloseMessage(conn, fts, enums.ServerError)
+					conn.Close()
+				}
 				return
 			}
 
-			w.WriteHeader(http.StatusOK)
 			response := map[string]int64{
 				"deleteCount": delCount,
 			}
-			json.NewEncoder(w).Encode(response)
+
+			pload, err := json.Marshal(response)
+			if err != nil {
+				em := utils.NewJsonEncodeErr(response, err)
+				utils.LogError(logger, em, zlg.Debug)
+				e := utils.SendErrMessage(conn, em, enums.JsonEncodeError)
+				if e != nil {
+					_ = utils.WriteCloseMessage(conn, e, enums.JsonEncodeError)
+					conn.Close()
+					return
+				}
+			}
+
+			msg := dtos.Message{
+				Event:   "deleteTask",
+				Payload: pload,
+			}
+
+			err = utils.SendMessage(conn, msg)
+			if err != nil {
+				failErr := utils.NewFailedMessageErr(msg, "delete task", err)
+				utils.LogError(logger, failErr, zlg.Debug)
+				_ = utils.WriteCloseMessage(conn, failErr, enums.ServerError)
+				conn.Close()
+			}
+
 		}
 
 	}
@@ -491,7 +558,7 @@ func handleEditTask(ctx context.Context, conn *websocket.Conn, data interface{},
 		return
 	}
 
-	validUid, err := dacstore.CheckUserData(r.Context(), cacheClient, utils.GetIP(r))
+	usrInfo, err := dacstore.CheckUserData(ctx, cacheClient, utils.GetIP(r))
 	var noResults *dacstore.ErrNoCacheResult
 
 	if err != nil {
@@ -505,7 +572,14 @@ func handleEditTask(ctx context.Context, conn *websocket.Conn, data interface{},
 		return
 	}
 
-	if taskReq.Uid != validUid {
+	usr, ok := usrInfo.(dtos.UserDto)
+	if !ok {
+		e := utils.NewTypeCastErr(usrInfo, dtos.UserDto{}, nil)
+		utils.LogError(logger, e, zlg.Debug)
+		utils.SendErrMessage(conn, e, enums.ServerError)
+	}
+
+	if taskReq.Uid != usr.Uid {
 		logger.MustDebug("invalid edit request user must own task to remove it")
 		http.Error(w, "invalid edit request user must own task to remove it", http.StatusBadRequest)
 		return

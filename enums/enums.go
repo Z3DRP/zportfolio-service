@@ -26,6 +26,8 @@ const (
 	Timeout            = 4004
 	TypeCastErr        = 4005
 	TimeParseErr       = 4006
+	MissingData        = 4007
+	PermissionErr      = 4008
 )
 
 var wsConnCodeStrings = map[WsConnCode]string{
@@ -47,6 +49,8 @@ var wsConnCodeStrings = map[WsConnCode]string{
 	Timeout:            "Timeout",
 	TypeCastErr:        "Type Cast Error",
 	TimeParseErr:       "Time Parse Error",
+	MissingData:        "Missing Data",
+	PermissionErr:      "Permission Error",
 }
 
 func (w WsConnCode) String() string {

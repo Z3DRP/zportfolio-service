@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/Z3DRP/zportfolio-service/enums"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
@@ -20,16 +21,27 @@ func GetIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func GenerateTID() (string, error) {
-	bid, err := generateID(12, 9)
+func GenerateID(idType string) (string, error) {
+	var prefix string
+	switch strings.ToLower(idType) {
+	case "task":
+		prefix = "TSK"
+	case "user":
+		prefix = "USR"
+	case "availability":
+		prefix = "AVB"
+	default:
+		prefix = ""
+	}
+	id, err := createID(12, 9)
 	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("TSK-%v", bid), nil
+	return fmt.Sprintf("%v-%v", prefix, id), nil
 }
 
-func generateID(length int, mx int64) (string, error) {
+func createID(length int, mx int64) (string, error) {
 	max := big.NewInt(mx)
 	ilen := length
 	id := ""

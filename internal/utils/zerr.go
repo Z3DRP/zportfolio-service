@@ -2,6 +2,8 @@ package utils
 
 import (
 	"fmt"
+
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 )
 
 type ErrJsonDecode struct {
@@ -211,7 +213,7 @@ type DbErr struct {
 }
 
 func (d DbErr) Error() string {
-	return fmt.Sprintf("an error occurred while %v %v :: %v", d.Operation, d.Store, d.Err)
+	return fmt.Sprintf("%v %v operation failed :: %v", d.Operation, d.Store, d.Err)
 }
 
 func (d DbErr) Unwrap() error {
@@ -246,4 +248,128 @@ func NewNotificationErr(notiData, usrData string, e error) NotificationFailedErr
 		NotificationData: notiData,
 		UserData:         usrData,
 	}
+}
+
+type FailedMessageErr struct {
+	Message   dtos.Message
+	Operation string
+	Err       error
+}
+
+func NewFailedMessageErr(m dtos.Message, operation string, e error) FailedMessageErr {
+	return FailedMessageErr{
+		Message:   m,
+		Operation: operation,
+		Err:       e,
+	}
+}
+
+func (f FailedMessageErr) Error() string {
+	return fmt.Sprintf("%#v\n", f)
+}
+
+func (f FailedMessageErr) Unwrap() error {
+	return f.Err
+}
+
+type InvalidDataErr struct {
+	FieldName    string
+	ExpectedType interface{}
+	RecievedType interface{}
+	Err          error
+}
+
+func NewInvalidDataErr(fname string, expectedType, recievedType interface{}, e error) InvalidDataErr {
+	return InvalidDataErr{
+		FieldName:    fname,
+		ExpectedType: expectedType,
+		RecievedType: recievedType,
+		Err:          e,
+	}
+}
+
+func (i InvalidDataErr) Error() string {
+	return fmt.Sprintf("invalid data, expected type: [%T] recieved type: [%T] for %v", i.ExpectedType, i.RecievedType, i.FieldName)
+}
+
+func (i InvalidDataErr) Unwrap() error {
+	return i.Err
+}
+
+type MissingDataErr struct {
+	FieldName    string
+	ExpectedType string
+	Err          error
+}
+
+func NewMissingDataErr(fldname, expctedType string, e error) MissingDataErr {
+	return MissingDataErr{
+		FieldName:    fldname,
+		ExpectedType: expctedType,
+		Err:          e,
+	}
+}
+
+func (m MissingDataErr) Error() string {
+	return fmt.Sprintf("error missing %v, expected %v", m.FieldName, m.ExpectedType)
+}
+
+func (m MissingDataErr) Unwrap() error {
+	return m.Err
+}
+
+type UserNotFoundErr struct {
+	Identifier string
+	Err        error
+}
+
+func (u UserNotFoundErr) Error() string {
+	return fmt.Sprintf("user %v not found :: %v", u.Identifier, u.Err)
+}
+
+func (u UserNotFoundErr) Unwrap() error {
+	return u.Err
+}
+
+func NewUserNotFoundErr(id string, e error) UserNotFoundErr {
+	return UserNotFoundErr{Identifier: id, Err: e}
+}
+
+type InvalidOperationErr struct {
+	Operation   string
+	Description string
+	Err         error
+}
+
+func (i InvalidOperationErr) Error() string {
+	return fmt.Sprintf("error %v not allowed, %v", i.Operation, i.Description)
+}
+
+func (i InvalidOperationErr) Unwrap() error {
+	return i.Err
+}
+
+func NewInvalidOperationErr(op, desrp string, e error) InvalidOperationErr {
+	return InvalidOperationErr{
+		Operation:   op,
+		Description: desrp,
+		Err:         e,
+	}
+}
+
+type FailedToSendErr struct {
+	Descript string
+	Err      error
+}
+
+func (f FailedToSendErr) Error() string {
+	return fmt.Sprintf("failed to send message, %v :: %v", f.Descript, f.Err)
+}
+
+func (f FailedToSendErr) Unwrap() error {
+	return f.Err
+}
+
+func NewFaildToSendErr(descp string, e error) FailedToSendErr {
+	return FailedToSendErr{Descript: descp, Err: e}
 }
