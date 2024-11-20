@@ -261,8 +261,8 @@ func RemoveTask(ctx context.Context, tid, uid string) (int64, error) {
 	return delCount, nil
 }
 
-func CreateVisitor(ctx context.Context, visitCount int, addr string, hasCreatedTask bool) (models.Responser, error) {
-	vis := models.NewVisitor(visitCount, addr, hasCreatedTask)
+func CreateVisitor(ctx context.Context, visitCount int, uid, addr string, hasCreatedTask bool) (models.Responser, error) {
+	vis := models.NewVisitor(visitCount, uid, addr, hasCreatedTask)
 	vStore, err := dacstore.CreateVisitorStore(ctx)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("could not create visitor store:: %v", err))

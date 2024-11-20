@@ -26,7 +26,7 @@ type UserData struct {
 	Company string
 	Email   string
 	Phone   string
-	Roles   []string
+	Roles   string
 }
 
 func NewUserData(nm, cm, em, ph, roles string) UserData {
@@ -35,7 +35,7 @@ func NewUserData(nm, cm, em, ph, roles string) UserData {
 		Company: cm,
 		Email:   em,
 		Phone:   ph,
-		Roles:   strings.Split(roles, ","),
+		Roles:   roles,
 	}
 }
 

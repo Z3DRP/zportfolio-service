@@ -97,11 +97,6 @@ func NewZemailRequestDto(to, sub, bdy string, cc []string, useHtml bool, data Al
 	}
 }
 
-type Message struct {
-	Event   string          `json:"event"`
-	Payload json.RawMessage `json:"payload"`
-}
-
 type SocketErrMsg struct {
 	ErrMsg      string
 	CodeMessage string
@@ -211,6 +206,7 @@ type TaskPayloadDTO struct {
 	Detail      string
 	Uid         string
 	UsrName     string
+	Tid         string
 	Company     string
 	Email       string
 	Phone       string

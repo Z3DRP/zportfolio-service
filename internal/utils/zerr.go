@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
+	"github.com/gorilla/websocket"
 )
 
 type ErrJsonDecode struct {
@@ -358,18 +359,102 @@ func NewInvalidOperationErr(op, desrp string, e error) InvalidOperationErr {
 }
 
 type FailedToSendErr struct {
-	Descript string
-	Err      error
+	Conn *websocket.Conn
+	Err  error
 }
 
 func (f FailedToSendErr) Error() string {
-	return fmt.Sprintf("failed to send message, %v :: %v", f.Descript, f.Err)
+	return fmt.Sprintf("failed to send err message for conn, %v :: %v", f.Conn, f.Err)
 }
 
 func (f FailedToSendErr) Unwrap() error {
 	return f.Err
 }
 
-func NewFaildToSendErr(descp string, e error) FailedToSendErr {
-	return FailedToSendErr{Descript: descp, Err: e}
+func NewFailedToSendErr(c *websocket.Conn, e error) FailedToSendErr {
+	return FailedToSendErr{Conn: c, Err: e}
+}
+
+type NoCacheResultErr struct {
+	Obj        string
+	Identifier string
+	Err        error
+}
+
+func (nc NoCacheResultErr) Error() string {
+	return fmt.Sprintf("no cache results for %v: %v", nc.Obj, nc.Identifier)
+}
+
+func (nc NoCacheResultErr) Unwrap() error {
+	return nc.Err
+}
+
+func NewNoCacheResultErr(obj, idnfr string, e error) NoCacheResultErr {
+	return NoCacheResultErr{
+		Obj:        obj,
+		Identifier: idnfr,
+		Err:        e,
+	}
+}
+
+type PermissionErr struct {
+	Action      string
+	Description string
+	Err         error
+}
+
+func (p PermissionErr) Error() string {
+	return fmt.Sprintf("invalid operation: %v, %v", p.Action, p.Description)
+}
+
+func (p PermissionErr) Unwrap() error {
+	return p.Err
+}
+
+func NewPermissionErr(act, desc string, e error) PermissionErr {
+	return PermissionErr{
+		Action:      act,
+		Description: desc,
+		Err:         e,
+	}
+}
+
+type WbsConnClosedErr struct {
+	Conn *websocket.Conn
+	Err  error
+}
+
+func (c WbsConnClosedErr) Error() string {
+	return fmt.Sprintf("websocket connection is closed; connection: %v", c.Conn.RemoteAddr())
+}
+
+func (c WbsConnClosedErr) Unwrap() error {
+	return c.Err
+}
+
+func NewWbsConnClosedErr(c *websocket.Conn, e error) WbsConnClosedErr {
+	return WbsConnClosedErr{
+		Conn: c,
+		Err:  e,
+	}
+}
+
+type InvalidUserErr struct {
+	Id  string
+	Err error
+}
+
+func (i InvalidUserErr) Error() string {
+	return fmt.Sprintf("invalid user :%v does not exist :: %v", i.Id, i.Err)
+}
+
+func (i InvalidUserErr) Unwrap() error {
+	return i.Err
+}
+
+func NewInvalidUser(id string, e error) InvalidUserErr {
+	return InvalidUserErr{
+		Id:  id,
+		Err: e,
+	}
 }

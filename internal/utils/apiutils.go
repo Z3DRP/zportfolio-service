@@ -2,15 +2,17 @@ package utils
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
-	"math/big"
-	"net/http"
-	"strings"
-
 	"github.com/Z3DRP/zportfolio-service/enums"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
 	"github.com/gorilla/websocket"
+	"io"
+	"math/big"
+	"net"
+	"net/http"
+	"strings"
 )
 
 func GetIP(r *http.Request) string {
@@ -82,7 +84,20 @@ func SendMessage(conn *websocket.Conn, msg dtos.Message) error {
 	return nil
 }
 
-func SendErrMessage(conn *websocket.Conn, e error, conCode int) error {
+func MustSendMessage(conn *websocket.Conn, msg dtos.Message) error {
+	err := conn.WriteJSON(msg)
+	if err != nil {
+		if IsConnClosed(err) {
+			return NewWbsConnClosedErr(conn, err)
+		}
+		_ = WriteCloseMessage(conn, err, enums.ServerError)
+		conn.Close()
+		return NewFailedMessageErr(msg, msg.Event, err)
+	}
+	return nil
+}
+
+func MustSendErrMessage(conn *websocket.Conn, e error, conCode int) error {
 	emsg := dtos.SocketErrMsg{
 		ErrMsg:      e.Error(),
 		ConnCode:    conCode,
@@ -91,7 +106,12 @@ func SendErrMessage(conn *websocket.Conn, e error, conCode int) error {
 
 	err := conn.WriteJSON(emsg)
 	if err != nil {
-		return err
+		if IsConnClosed(err) {
+			return NewWbsConnClosedErr(conn, err)
+		}
+		_ = WriteCloseMessage(conn, err, enums.ServerError)
+		conn.Close()
+		return NewFailedToSendErr(conn, err)
 	}
 	return nil
 }
@@ -145,5 +165,31 @@ func WriteLog(logger *zlogger.Zlogrus, s string, lvl zlogger.LogLevel) {
 		logger.MustError(msg)
 	case zlogger.Panic:
 		logger.MustPanic(msg)
+	}
+}
+
+func JoinBy(s []string, seperator string) string {
+	return strings.Join(s, seperator)
+}
+
+func SplitBy(s, delmtr string) []string {
+	return strings.Split(s, delmtr)
+}
+
+func IsConnClosed(e error) bool {
+	return errors.Is(e, io.EOF) || errors.Is(e, net.ErrClosed)
+}
+
+type InvalidEventErr struct {
+	Event string
+}
+
+func (i InvalidEventErr) Error() string {
+	return fmt.Sprintf("error unknown event type: %v", i.Event)
+}
+
+func NewInvalidEventErr(evnt string) InvalidEventErr {
+	return InvalidEventErr{
+		Event: evnt,
 	}
 }

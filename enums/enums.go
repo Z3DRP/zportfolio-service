@@ -20,14 +20,15 @@ const (
 	TryAgainLater      = 1013
 	BadGateway         = 1014
 	CacheError         = 4000
-	DatabaseError      = 4001
-	JsonDecodeError    = 4002
-	JsonEncodeError    = 4003
-	Timeout            = 4004
-	TypeCastErr        = 4005
-	TimeParseErr       = 4006
-	MissingData        = 4007
-	PermissionErr      = 4008
+	NoCacheErr         = 4001
+	DatabaseError      = 4002
+	JsonDecodeError    = 4003
+	JsonEncodeError    = 4004
+	Timeout            = 4005
+	TypeCastErr        = 4006
+	TimeParseErr       = 4007
+	MissingData        = 4008
+	PermissionErr      = 4009
 )
 
 var wsConnCodeStrings = map[WsConnCode]string{
@@ -43,6 +44,7 @@ var wsConnCodeStrings = map[WsConnCode]string{
 	TryAgainLater:      "Try Again Later",
 	BadGateway:         "Bad Gateway",
 	CacheError:         "Cache Error",
+	NoCacheErr:         "No Cache Results",
 	DatabaseError:      "Database Error",
 	JsonDecodeError:    "Json Decode Error",
 	JsonEncodeError:    "Json Encode Error",
