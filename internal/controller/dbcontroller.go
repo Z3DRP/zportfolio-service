@@ -224,41 +224,41 @@ func EditTask(ctx context.Context, tid, uid string, start, end time.Time, detail
 	return models.NewTaskEditResponse(matchedCount, updatedCount, updatedTask), nil
 }
 
-func RemoveTask(ctx context.Context, tid, uid string) (int64, error) {
+func RemoveTask(ctx context.Context, tid, uid string) (models.TaskDeleteResponse, error) {
 	taskStore, err := dacstore.CreateTaskStore(ctx)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("error creating task store:: %v", err))
-		return 0, fmt.Errorf("failed to create task store:: %w", err)
+		return models.TaskDeleteResponse{}, fmt.Errorf("failed to create task store:: %w", err)
 	}
 
 	task, err := taskStore.FetchTask(ctx, tid)
 	if err != nil {
-		var noResults *dacstore.ErrNoCacheResult
+		var noResults *dacstore.ErrNoResults
 		if errors.As(err, &noResults) {
 			logger.MustDebug(fmt.Sprintf("could not find task with ID: %v", tid))
-			return 0, fmt.Errorf("could not find task with ID: %v", tid)
+			return models.TaskDeleteResponse{}, fmt.Errorf("could not find task with ID: %v", tid)
 		}
 		logger.MustDebug(fmt.Sprintf("could not read task for delete:: %v", err))
-		return 0, fmt.Errorf("could not read task for delete:: %v", err)
+		return models.TaskDeleteResponse{}, fmt.Errorf("could not read task for delete:: %v", err)
 	}
 
 	if tsk, ok := task.(models.Task); ok {
 		if tsk.User != uid {
 			logger.MustDebug("delete action not allowed user must own task")
-			return 0, fmt.Errorf("action not allowed user must own task")
+			return models.TaskDeleteResponse{}, fmt.Errorf("action not allowed user must own task")
 		}
 	} else {
 		logger.MustDebug(fmt.Sprintf("could not cast Type[%T] as Task for delete", task))
-		return 0, fmt.Errorf("could not cast Type[%T] as Task for delete", task)
+		return models.TaskDeleteResponse{}, fmt.Errorf("could not cast Type[%T] as Task for delete", task)
 	}
 
 	delCount, err := taskStore.DeleteTask(ctx, tid)
 	if err != nil {
 		logger.MustDebug(fmt.Sprintf("error deleting task task:: %v", err))
-		return 0, fmt.Errorf("failed to delete task:: %w", err)
+		return models.TaskDeleteResponse{}, fmt.Errorf("failed to delete task:: %w", err)
 	}
 
-	return delCount, nil
+	return models.NewTaskDeleteResponse(tid, delCount), nil
 }
 
 func CreateVisitor(ctx context.Context, visitCount int, uid, addr string, hasCreatedTask bool) (models.Responser, error) {

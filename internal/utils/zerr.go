@@ -251,28 +251,6 @@ func NewNotificationErr(notiData, usrData string, e error) NotificationFailedErr
 	}
 }
 
-type FailedMessageErr struct {
-	Message   dtos.Message
-	Operation string
-	Err       error
-}
-
-func NewFailedMessageErr(m dtos.Message, operation string, e error) FailedMessageErr {
-	return FailedMessageErr{
-		Message:   m,
-		Operation: operation,
-		Err:       e,
-	}
-}
-
-func (f FailedMessageErr) Error() string {
-	return fmt.Sprintf("%#v\n", f)
-}
-
-func (f FailedMessageErr) Unwrap() error {
-	return f.Err
-}
-
 type InvalidDataErr struct {
 	FieldName    string
 	ExpectedType interface{}
@@ -456,5 +434,47 @@ func NewInvalidUser(id string, e error) InvalidUserErr {
 	return InvalidUserErr{
 		Id:  id,
 		Err: e,
+	}
+}
+
+type ErrFailedSendEventResponse struct {
+	EventType string
+	Err       error
+	Conn      *websocket.Conn
+}
+
+func (e ErrFailedSendEventResponse) Error() string {
+	return fmt.Sprintf("failed to send %v on %v", e.EventType, e.Conn)
+}
+
+func (e ErrFailedSendEventResponse) Unwrap() error {
+	return e.Err
+}
+
+func NewFailedSendEventResponse(conn *websocket.Conn, evntType string, e error) *ErrFailedSendEventResponse {
+	return &ErrFailedSendEventResponse{
+		EventType: evntType,
+		Err:       e,
+		Conn:      conn,
+	}
+}
+
+type ErrZypherFailure struct {
+	Process string
+	Err     error
+}
+
+func (e ErrZypherFailure) Error() string {
+	return fmt.Sprintf("failed to calculate zypher for %v", e.Process)
+}
+
+func (e ErrZypherFailure) Unwrap() error {
+	return e.Err
+}
+
+func NewZypherFailureErr(prcss string, e error) *ErrZypherFailure {
+	return &ErrZypherFailure{
+		Process: prcss,
+		Err:     e,
 	}
 }

@@ -57,6 +57,14 @@ func NewEmailInfo(cc, body string, uHtml bool) EmailInfo {
 	}
 }
 
+func DefaultEmlInfo() EmailInfo {
+	return EmailInfo{
+		Cc:      make([]string, 0),
+		Body:    "",
+		UseHtml: true,
+	}
+}
+
 func (e EmailInfo) String() string {
 	return fmt.Sprintf("%#v\n", e)
 }

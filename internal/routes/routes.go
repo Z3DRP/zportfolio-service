@@ -43,9 +43,10 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return config.IsValidOrigin(r.Header.Get("origin")) },
 }
 
+var wsManager = wsman.NewManager()
+
 func NewServer(sconfig config.ZServerConfig) (*http.Server, error) {
 	// todo maybe pass in logger to manager??
-	wsManager := wsman.NewManager()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /about", getAbout)
 	mux.HandleFunc("POST /zypher", getZypher)
@@ -74,6 +75,11 @@ func handleScheduleWebsocket(w http.ResponseWriter, r *http.Request) {
 		utils.LogError(logger, err, zlg.Debug)
 		return
 	}
+	
+	client := wsman.NewClient(conn, manager, logger)
+	wsManager.AddClient(client)
+
+	go client.ReadMessages()
 
 	for { 
 		var message eventbus.Message, err := conn.ReadJSON(&message)

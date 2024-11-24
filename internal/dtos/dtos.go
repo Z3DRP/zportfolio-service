@@ -1,7 +1,6 @@
 package dtos
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -262,4 +261,21 @@ func convertHr(h int) int {
 		hr = 12
 	}
 	return hr
+}
+
+type Payloader interface {
+	models.ScheduleResponse | *models.ScheduleResponse | models.TaskInsertResponse | *models.TaskInsertResponse | models.TaskDeleteResponse |
+		models.TaskEditResponse | *models.TaskEditResponse
+}
+
+type EventDto[P Payloader] struct {
+	Type    string
+	Payload P
+}
+
+func NewEventDto[P Payloader](etype string, payload P) EventDto[P] {
+	return EventDto[P]{
+		Type:    etype,
+		Payload: payload,
+	}
 }

@@ -63,6 +63,22 @@ type TaskInsertResponse struct {
 	NwTask *Task
 }
 
+type TaskDeleteResponse struct {
+	Tid      string
+	DelCount int64
+}
+
+func NewTaskDeleteResponse(tid string, count int64) TaskDeleteResponse {
+	return TaskDeleteResponse{
+		Tid:      tid,
+		DelCount: count,
+	}
+}
+
+func (t TaskDeleteResponse) PrintRes() string {
+	return fmt.Sprintf("%#v\n", t)
+}
+
 type VisitorResponse struct {
 	Result  primitive.ObjectID
 	Visitor *Visitor
