@@ -1,4 +1,4 @@
-package handlers
+package wsman
 
 import (
 	"context"
@@ -15,40 +15,44 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/Z3DRP/zportfolio-service/internal/utils"
-	"github.com/Z3DRP/zportfolio-service/internal/wsman"
 	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
-func HandleGetSchedule(ctx context.Context, clnt wsman.Client, evnt wsman.Event) error {
+func HandleGetSchedule(ctx context.Context, clnt *Client, evnt Event) error {
 	select {
 	case <-ctx.Done():
 		e := utils.NewTimeoutErr("get schedule", nil)
 		if err := utils.MustSendErrMessage(clnt.Connection, e, enums.Timeout); err != nil {
-			clnt.Logger.MustDebug(err.Error())
+			clnt.Manager.logger.MustDebug(err.Error())
 		}
 		clnt.Connection.Close()
 	default:
 		var scheduleData models.Responser
-		var fetchSchedEvnt wsman.EvntFetchSchedule
+		var fetchSchedEvnt EvntFetchSchedule
+
 		if err := json.Unmarshal(evnt.Payload, &fetchSchedEvnt); err != nil {
 			return utils.NewJsonDecodeErr(fetchSchedEvnt, err)
 		}
 
 		cacheClient, err := dacstore.NewRedisClient(ctx)
+
 		if err != nil {
 			return dacstore.NewRedisConnErr(cacheClient.ClientID(ctx), err)
 		}
 		// NOTE period data must be a iso string
 		periodStart, err := time.Parse(time.RFC3339, fetchSchedEvnt.PeriodStart)
+
 		if err != nil {
 			return utils.NewTimeParseErr(fetchSchedEvnt.PeriodStart, "Period Start", err)
 		}
 
 		periodEnd, err := time.Parse(time.RFC3339, fetchSchedEvnt.PeriodEnd)
+
 		if err != nil {
 			return utils.NewTimeParseErr(fetchSchedEvnt.PeriodStart, "Period End", err)
 		}
 
+		clnt.SetPeriod(&models.Period{StartDate: periodStart, EndDate: periodEnd})
 		scheduleData, err = dacstore.CheckScheduleData(ctx, cacheClient, periodStart, periodEnd)
 		var noResults *dacstore.ErrNoCacheResult
 
@@ -56,7 +60,7 @@ func HandleGetSchedule(ctx context.Context, clnt wsman.Client, evnt wsman.Event)
 			if !errors.As(err, &noResults) {
 				return utils.NewCacheOpErr("read", "schedule", err)
 			}
-			clnt.Logger.MustDebug("cache had no values for schedule")
+			clnt.Manager.logger.MustDebug("cache had no values for schedule")
 		}
 
 		if scheduleData == nil {
@@ -72,7 +76,6 @@ func HandleGetSchedule(ctx context.Context, clnt wsman.Client, evnt wsman.Event)
 					return utils.NewCacheOpErr("write", "schedule", err)
 				}
 			}
-
 		}
 
 		if sdata, ok := scheduleData.(*models.ScheduleResponse); ok {
@@ -91,7 +94,7 @@ func HandleGetSchedule(ctx context.Context, clnt wsman.Client, evnt wsman.Event)
 	return nil
 }
 
-func handleCreateTask(ctx context.Context, clnt wsman.Client, evnt wsman.Event) error {
+func HandleCreateTask(ctx context.Context, clnt *Client, evnt Event) error {
 	select {
 	case <-ctx.Done():
 		e := utils.NewTimeoutErr("create task", nil)
@@ -99,7 +102,7 @@ func handleCreateTask(ctx context.Context, clnt wsman.Client, evnt wsman.Event) 
 			return utils.NewFailedToSendErr(clnt.Connection, &e)
 		}
 	default:
-		var createEvnt wsman.EvntTaskUpsert
+		var createEvnt EvntTaskUpsert
 		uip := clnt.Connection.RemoteAddr().String()
 		settings, err := config.ReadZypherSettings()
 		if err != nil {
@@ -165,20 +168,20 @@ func handleCreateTask(ctx context.Context, clnt wsman.Client, evnt wsman.Event) 
 				if err := controller.SendTaskNotificationEmail(ctx, *tskRes.NwTask, usrData, emlData, enums.ZemailType(0)); err != nil {
 					logr.MustDebug(err.Error())
 				}
-			}(clnt.Logger, usrData, emlData)
+			}(clnt.Manager.logger, usrData, emlData)
 
 			go func(logr *zlogger.Zlogrus, udata adapters.UserData, eData adapters.EmailInfo) {
 				if err = controller.SendThanksNotification(ctx, udata, eData); err != nil {
 					logr.MustDebug(fmt.Sprintf("could not send thank you notification to '%v' at '%v'", udata.Name, udata.Email))
 				}
-			}(clnt.Logger, usrData, emlData)
+			}(clnt.Manager.logger, usrData, emlData)
 
 			msg := dtos.NewEventDto(evnt.Type, *tskRes)
 
 			if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 				return utils.NewFailedSendEventResponse(clnt.Connection, evnt.Type, err)
 			}
-			clnt.Logger.MustDebug(fmt.Sprintf("task %v created successfully by usr %v", tskRes.NwTask.Id, usr.Uid))
+			clnt.Manager.logger.MustDebug(fmt.Sprintf("task %v created successfully by usr %v", tskRes.NwTask.Id, usr.Uid))
 
 		} else {
 			return utils.NewTypeCastErr(nwTask, models.TaskInsertResponse{}, nil)
@@ -187,7 +190,7 @@ func handleCreateTask(ctx context.Context, clnt wsman.Client, evnt wsman.Event) 
 	return nil
 }
 
-func handleRemoveTask(ctx context.Context, clnt wsman.Client, envt wsman.Event) error {
+func HandleRemoveTask(ctx context.Context, clnt *Client, envt Event) error {
 	select {
 	case <-ctx.Done():
 		return utils.NewTimeoutErr("delete task", nil)
@@ -248,8 +251,8 @@ func handleRemoveTask(ctx context.Context, clnt wsman.Client, envt wsman.Event) 
 	return nil
 }
 
-func handleEditTask(ctx context.Context, clnt wsman.Client, envt wsman.Event) error {
-	var upsertEvnt wsman.EvntTaskUpsert
+func HandleEditTask(ctx context.Context, clnt *Client, envt Event) error {
+	var upsertEvnt EvntTaskUpsert
 	if err := json.Unmarshal(envt.Payload, &upsertEvnt); err != nil {
 		return utils.NewJsonDecodeErr(upsertEvnt, err)
 	}
@@ -313,5 +316,3 @@ func handleEditTask(ctx context.Context, clnt wsman.Client, envt wsman.Event) er
 
 	return nil
 }
-
-//d

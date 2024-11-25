@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func GetIP(r *http.Request) string {
@@ -76,7 +77,7 @@ func GenToken() ([]byte, error) {
 	return asci, nil
 }
 
-func SendMessage(conn *websocket.Conn, msg dtos.Message) error {
+func SendMessage[P dtos.Payloader](conn *websocket.Conn, msg P) error {
 	err := conn.WriteJSON(msg)
 	if err != nil {
 		return err
@@ -84,7 +85,7 @@ func SendMessage(conn *websocket.Conn, msg dtos.Message) error {
 	return nil
 }
 
-func MustSendMessage(conn *websocket.Conn, msg dtos.Message) error {
+func MustSendMessage[P dtos.Payloader](conn *websocket.Conn, msg dtos.EventDto[P]) error {
 	err := conn.WriteJSON(msg)
 	if err != nil {
 		if IsConnClosed(err) {
@@ -92,7 +93,7 @@ func MustSendMessage(conn *websocket.Conn, msg dtos.Message) error {
 		}
 		_ = WriteCloseMessage(conn, err, enums.ServerError)
 		conn.Close()
-		return NewFailedMessageErr(msg, msg.Event, err)
+		return NewFailedSendEventResponse(conn, msg.Type, err)
 	}
 	return nil
 }
@@ -192,4 +193,36 @@ func NewInvalidEventErr(evnt string) InvalidEventErr {
 	return InvalidEventErr{
 		Event: evnt,
 	}
+}
+
+func IsGreaterThanOrEqual(firstDate, secondDate time.Time) bool {
+	return firstDate.UTC().Compare(secondDate) >= 0
+}
+
+func IsLessThanOrEqual(firstDate, secondDate time.Time) bool {
+	return firstDate.UTC().Compare(secondDate) <= 0
+}
+
+func IsGreaterThan(firstDate, secondDate time.Time) bool {
+	return firstDate.UTC().Compare(secondDate) == 1
+}
+
+func IsLessThan(firstDate, secondDate time.Time) bool {
+	return firstDate.UTC().Compare(secondDate) == -1
+}
+
+func IsEqual(firstDate, secondDate time.Time) bool {
+	return firstDate.UTC().Compare(secondDate) == 0
+}
+
+func IsBetweenInclusive(targetDate, startDate, endDate time.Time) bool {
+	return IsGreaterThanOrEqual(targetDate, startDate) && IsLessThanOrEqual(targetDate, endDate)
+}
+
+func IsBetweenExclusive(targetDate, startDate, endDate time.Time) bool {
+	return IsGreaterThan(targetDate, startDate) && IsLessThan(targetDate, endDate)
+}
+
+func IsInRange(targetStart, targetEnd, rangeStart, rangeEnd time.Time) bool {
+	return IsBetweenInclusive(targetStart, rangeStart, rangeEnd) && IsBetweenExclusive(targetEnd, rangeStart, rangeEnd)
 }

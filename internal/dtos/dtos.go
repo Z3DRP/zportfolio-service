@@ -279,3 +279,7 @@ func NewEventDto[P Payloader](etype string, payload P) EventDto[P] {
 		Payload: payload,
 	}
 }
+
+func StringifyDto[P Payloader](pload P) string {
+	return fmt.Sprintf("%#v\n", pload)
+}

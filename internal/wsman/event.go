@@ -1,6 +1,9 @@
 package wsman
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 type Event struct {
 	Type    string          `json:"type"`
@@ -8,13 +11,14 @@ type Event struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-type EventHandler func(event Event, client *Client) error
+type EventHandler func(ctx context.Context, clnt *Client, evnt Event) error
 
 const (
-	EventFetchSchedule = "fetch_schedule"
-	EventCreateTask    = "create_task"
-	EventUpdateTask    = "update_task"
-	EventRemoveTask    = "remove_task"
+	EventFetchSchedule     = "fetch_schedule"
+	EventBroadcastSchedule = "broadcast_schedule"
+	EventCreateTask        = "create_task"
+	EventUpdateTask        = "update_task"
+	EventRemoveTask        = "remove_task"
 )
 
 type EvntTaskDelete struct {
