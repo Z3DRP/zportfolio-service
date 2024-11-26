@@ -4,16 +4,17 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/Z3DRP/zportfolio-service/enums"
-	"github.com/Z3DRP/zportfolio-service/internal/dtos"
-	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
-	"github.com/gorilla/websocket"
 	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Z3DRP/zportfolio-service/enums"
+	"github.com/Z3DRP/zportfolio-service/internal/dtos"
+	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
+	"github.com/gorilla/websocket"
 )
 
 func GetIP(r *http.Request) string {

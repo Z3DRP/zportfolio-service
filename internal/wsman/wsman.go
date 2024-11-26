@@ -2,6 +2,7 @@ package wsman
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,6 +35,8 @@ var (
 	}
 )
 
+var wsctx context.Context
+
 type ErrFailedBroadcast struct {
 	EffectedPeriodStart time.Time
 	EffectedPeriodEnd   time.Time
@@ -56,37 +59,44 @@ type Manager struct {
 	sync.RWMutex
 }
 
-func NewManager(logr *zlogger.Zlogrus) *Manager {
-	return &Manager{
+func NewManager(ctx context.Context, logr *zlogger.Zlogrus) *Manager {
+	wsctx = ctx
+	man := &Manager{
 		Clients:  make(ClientList),
 		handlers: make(map[string]EventHandler),
 		logger:   logr,
 	}
+	man.setupEventHandlers()
+	return man
+}
+
+func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
+	conn, err := WebsocketUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		m.logger.MustDebug(fmt.Sprintf("error occurred while upgrading request: %v", err))
+		return
+	}
+
+	client := NewClient(conn, m)
+	m.AddClient(client)
+
+	go client.ReadMessages()
+	go client.WriteMessages()
 }
 
 // NOTE might have to update this to either wrap the actual handlers in the anom func or update the anom func to the handler itself
 func (m *Manager) setupEventHandlers() {
-	m.handlers[EventFetchSchedule] = func(ctx context.Context, clnt *Client, evnt Event) error {
-		if err := HandleGetSchedule(ctx, clnt, evnt); err != nil {
-			m.logger.MustDebug(err.Error())
-			return err
-		}
-		return nil
-	}
-
+	m.handlers[EventFetchSchedule] = HandleGetSchedule
 	m.handlers[EventCreateTask] = HandleCreateTask
 	m.handlers[EventUpdateTask] = HandleEditTask
 	m.handlers[EventRemoveTask] = HandleRemoveTask
+	m.handlers[EventBroadcastSchedule] = HandleBroadcastSchedule
 }
 
 func (m *Manager) routeEvent(event Event, clnt *Client) error {
 	if handler, ok := m.handlers[event.Type]; ok {
-		if err := handler(context.TODO(), clnt, event); err != nil {
+		if err := handler(wsctx, clnt, event); err != nil {
 			return err
-		}
-		// anything other than fetching needs to broadcast changes
-		if event.Type != EventFetchSchedule {
-			go m.BroadcastScheduleUpdate(clnt.CurrentPeriod)
 		}
 		return nil
 
@@ -133,14 +143,20 @@ func (m *Manager) BroadcastScheduleUpdate(prd *models.Period) {
 		m.logger.MustDebug(fmt.Sprintf("failed to type assert [%T] as type [%T]", result, models.ScheduleResponse{}))
 	}
 
-	evnt := dtos.NewEventDto(EventBroadcastSchedule, resposne)
+	rawResponse, err := json.Marshal(dtos.NewScheduleDto(resposne))
+	if err != nil {
+		m.logger.MustDebug(utils.NewJsonEncodeErr(resposne, err).Error())
+		return
+	}
 
-	for conn, clnt := range m.Clients {
+	msg := Event{
+		Type:    EventBroadcastSchedule,
+		Payload: rawResponse,
+	}
+
+	for _, clnt := range m.Clients {
 		if utils.IsInRange(clnt.CurrentPeriod.StartDate, clnt.CurrentPeriod.EndDate, prd.StartDate, prd.EndDate) {
-			if err := conn.WriteJSON(evnt); err != nil {
-				failedBroadCast := ErrFailedBroadcast{EffectedPeriodStart: prd.StartDate, EffectedPeriodEnd: prd.EndDate, Client: clnt, Err: err}
-				m.logger.MustDebug(failedBroadCast.Error())
-			}
+			clnt.MessageQue <- msg
 		}
 	}
 }

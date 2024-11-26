@@ -13,7 +13,7 @@ type Client struct {
 	Connection    *websocket.Conn
 	Manager       *Manager
 	CurrentPeriod *models.Period
-	MessageQue    chan []Event
+	MessageQue    chan Event
 }
 
 type ClientList map[*websocket.Conn]*Client
@@ -22,7 +22,7 @@ func NewClient(conn *websocket.Conn, manager *Manager) *Client {
 	return &Client{
 		Connection: conn,
 		Manager:    manager,
-		MessageQue: make(chan []Event),
+		MessageQue: make(chan Event),
 	}
 }
 
@@ -47,7 +47,7 @@ func (c *Client) ReadMessages() {
 		var message Event
 		err := c.Connection.ReadJSON(&message)
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				c.Manager.logger.MustDebug(err.Error())
 			}
 			break

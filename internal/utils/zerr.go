@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 
-	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/gorilla/websocket"
 )
 

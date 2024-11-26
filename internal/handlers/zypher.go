@@ -10,7 +10,7 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
-func getZypher(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
+func GetZypher(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 	// TODO getZypher will perform the zyphash func and return result
 	w.Header().Set("Content-Type", "application/json")
 	select {

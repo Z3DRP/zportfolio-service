@@ -21,11 +21,7 @@ import (
 func HandleGetSchedule(ctx context.Context, clnt *Client, evnt Event) error {
 	select {
 	case <-ctx.Done():
-		e := utils.NewTimeoutErr("get schedule", nil)
-		if err := utils.MustSendErrMessage(clnt.Connection, e, enums.Timeout); err != nil {
-			clnt.Manager.logger.MustDebug(err.Error())
-		}
-		clnt.Connection.Close()
+		closeOnTimeout(clnt, evnt.Type)
 	default:
 		var scheduleData models.Responser
 		var fetchSchedEvnt EvntFetchSchedule
@@ -91,16 +87,15 @@ func HandleGetSchedule(ctx context.Context, clnt *Client, evnt Event) error {
 		}
 
 	}
+
+	clnt.Manager.BroadcastScheduleUpdate(clnt.CurrentPeriod)
 	return nil
 }
 
 func HandleCreateTask(ctx context.Context, clnt *Client, evnt Event) error {
 	select {
 	case <-ctx.Done():
-		e := utils.NewTimeoutErr("create task", nil)
-		if err := utils.MustSendErrMessage(clnt.Connection, e, enums.Timeout); err != nil {
-			return utils.NewFailedToSendErr(clnt.Connection, &e)
-		}
+		closeOnTimeout(clnt, evnt.Type)
 	default:
 		var createEvnt EvntTaskUpsert
 		uip := clnt.Connection.RemoteAddr().String()
@@ -165,7 +160,7 @@ func HandleCreateTask(ctx context.Context, clnt *Client, evnt Event) error {
 			emlData := adapters.DefaultEmlInfo()
 
 			go func(logr *zlogger.Zlogrus, udata adapters.UserData, eData adapters.EmailInfo) {
-				if err := controller.SendTaskNotificationEmail(ctx, *tskRes.NwTask, usrData, emlData, enums.ZemailType(0)); err != nil {
+				if err = controller.SendTaskNotificationEmail(ctx, *tskRes.NwTask, usrData, emlData, enums.ZemailType(0)); err != nil {
 					logr.MustDebug(err.Error())
 				}
 			}(clnt.Manager.logger, usrData, emlData)
@@ -187,17 +182,19 @@ func HandleCreateTask(ctx context.Context, clnt *Client, evnt Event) error {
 			return utils.NewTypeCastErr(nwTask, models.TaskInsertResponse{}, nil)
 		}
 	}
+
+	clnt.Manager.BroadcastScheduleUpdate(clnt.CurrentPeriod)
 	return nil
 }
 
-func HandleRemoveTask(ctx context.Context, clnt *Client, envt Event) error {
+func HandleRemoveTask(ctx context.Context, clnt *Client, evnt Event) error {
 	select {
 	case <-ctx.Done():
-		return utils.NewTimeoutErr("delete task", nil)
+		closeOnTimeout(clnt, evnt.Type)
 	default:
 		var usr dtos.UserDto
 		var rmvEvnt dtos.TaskDeletePaylaod
-		if err := json.Unmarshal(envt.Payload, &rmvEvnt); err != nil {
+		if err := json.Unmarshal(evnt.Payload, &rmvEvnt); err != nil {
 			return utils.NewJsonDecodeErr(rmvEvnt, err)
 		}
 
@@ -241,78 +238,104 @@ func HandleRemoveTask(ctx context.Context, clnt *Client, envt Event) error {
 			return utils.NewDbErr("delete", "task", err)
 		}
 
-		msg := dtos.NewEventDto(envt.Type, delCountRes)
+		msg := dtos.NewEventDto(evnt.Type, delCountRes)
 
 		if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 			return utils.NewFailedToSendErr(clnt.Connection, err)
 		}
 
 	}
+
+	clnt.Manager.BroadcastScheduleUpdate(clnt.CurrentPeriod)
 	return nil
 }
 
-func HandleEditTask(ctx context.Context, clnt *Client, envt Event) error {
-	var upsertEvnt EvntTaskUpsert
-	if err := json.Unmarshal(envt.Payload, &upsertEvnt); err != nil {
-		return utils.NewJsonDecodeErr(upsertEvnt, err)
-	}
+func HandleEditTask(ctx context.Context, clnt *Client, evnt Event) error {
+	select {
+	case <-ctx.Done():
+		closeOnTimeout(clnt, evnt.Type)
+	default:
+		var upsertEvnt EvntTaskUpsert
+		if err := json.Unmarshal(evnt.Payload, &upsertEvnt); err != nil {
+			return utils.NewJsonDecodeErr(upsertEvnt, err)
+		}
 
-	if upsertEvnt.Tid == "" {
-		return utils.NewMissingDataErr("task id", "string", nil)
-	}
+		if upsertEvnt.Tid == "" {
+			return utils.NewMissingDataErr("task id", "string", nil)
+		}
 
-	taskStart, err := time.Parse(time.RFC3339, upsertEvnt.Start)
-	if err != nil {
-		return utils.NewTimeParseErr(upsertEvnt.Start, "start date", err)
-	}
+		taskStart, err := time.Parse(time.RFC3339, upsertEvnt.Start)
+		if err != nil {
+			return utils.NewTimeParseErr(upsertEvnt.Start, "start date", err)
+		}
 
-	taskEnd, err := time.Parse(time.RFC3339, upsertEvnt.End)
-	if err != nil {
-		return utils.NewTimeParseErr(upsertEvnt.End, "end date", err)
-	}
+		taskEnd, err := time.Parse(time.RFC3339, upsertEvnt.End)
+		if err != nil {
+			return utils.NewTimeParseErr(upsertEvnt.End, "end date", err)
+		}
 
-	if upsertEvnt.Uid == "" {
-		return utils.NewMissingDataErr("user id", "string", nil)
-	}
+		if upsertEvnt.Uid == "" {
+			return utils.NewMissingDataErr("user id", "string", nil)
+		}
 
-	cacheClient, err := dacstore.NewRedisClient(ctx)
-	if err != nil {
-		return dacstore.NewRedisConnErr(cacheClient.ClientID(ctx), err)
-	}
+		cacheClient, err := dacstore.NewRedisClient(ctx)
+		if err != nil {
+			return dacstore.NewRedisConnErr(cacheClient.ClientID(ctx), err)
+		}
 
-	usrInfo, err := dacstore.CheckUserData(ctx, cacheClient, clnt.Connection.RemoteAddr().String())
-	var noResults *dacstore.ErrNoCacheResult
+		usrInfo, err := dacstore.CheckUserData(ctx, cacheClient, clnt.Connection.RemoteAddr().String())
+		var noResults *dacstore.ErrNoCacheResult
 
-	if err != nil {
-		if errors.As(err, &noResults) {
-			return utils.NewInvalidUser(upsertEvnt.Uid, err)
+		if err != nil {
+			if errors.As(err, &noResults) {
+				return utils.NewInvalidUser(upsertEvnt.Uid, err)
+
+			}
+		}
+
+		usr, ok := usrInfo.(dtos.UserDto)
+		if !ok {
+			return utils.NewTypeCastErr(usrInfo, dtos.UserDto{}, nil)
+		}
+
+		if upsertEvnt.Uid != usr.Uid {
+			return utils.NewPermissionErr("edit task", "user must own task to remove it", nil)
+		}
+
+		results, err := controller.EditTask(ctx, upsertEvnt.Tid, upsertEvnt.Uid, taskStart, taskEnd, upsertEvnt.Detail)
+		if err != nil {
+			return utils.NewDbErr("edit task", "task", err)
+		}
+
+		rsltRes, ok := results.(*models.TaskEditResponse)
+		if !ok {
+			return utils.NewTypeCastErr(rsltRes, results, nil)
+		}
+
+		msg := dtos.NewEventDto(evnt.Type, rsltRes)
+
+		if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
+			return utils.NewFailedSendEventResponse(clnt.Connection, evnt.Type, err)
 		}
 	}
 
-	usr, ok := usrInfo.(dtos.UserDto)
-	if !ok {
-		return utils.NewTypeCastErr(usrInfo, dtos.UserDto{}, nil)
-	}
-
-	if upsertEvnt.Uid != usr.Uid {
-		return utils.NewPermissionErr("edit task", "user must own task to remove it", nil)
-	}
-
-	results, err := controller.EditTask(ctx, upsertEvnt.Tid, upsertEvnt.Uid, taskStart, taskEnd, upsertEvnt.Detail)
-	if err != nil {
-		return utils.NewDbErr("edit task", "task", err)
-	}
-
-	rsltRes, ok := results.(*models.TaskEditResponse)
-	if !ok {
-		return utils.NewTypeCastErr(rsltRes, results, nil)
-	}
-
-	msg := dtos.NewEventDto(envt.Type, rsltRes)
-
-	if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
-		return utils.NewFailedSendEventResponse(clnt.Connection, envt.Type, err)
-	}
-
+	clnt.Manager.BroadcastScheduleUpdate(clnt.CurrentPeriod)
 	return nil
+}
+
+func HandleBroadcastSchedule(ctx context.Context, clnt *Client, evnt Event) error {
+	if err := clnt.Connection.WriteJSON(evnt); err != nil {
+		clnt.Manager.logger.MustDebug(fmt.Sprintf("failed to broadcast schedule for client: %v, error: %v", clnt.Connection.RemoteAddr().String(), err))
+		return fmt.Errorf("failed to broadcast schedule for client %v, error: %v", clnt.Connection.RemoteAddr().String(), err)
+	}
+	return nil
+}
+
+func closeOnTimeout(clnt *Client, eventType string) {
+	timeoutErr := utils.NewTimeoutErr("delete task", nil)
+	clnt.Manager.logger.MustDebug(timeoutErr.Error())
+	if err := clnt.Connection.Close(); err != nil {
+		clnt.Manager.logger.MustDebug(fmt.Sprintf("could not close connection on client: %v", clnt.Connection.RemoteAddr().String()))
+	}
+
 }

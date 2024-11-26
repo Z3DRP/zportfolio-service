@@ -17,7 +17,7 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
-func getAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
+func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
