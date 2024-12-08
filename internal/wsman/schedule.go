@@ -76,7 +76,7 @@ func HandleGetSchedule(ctx context.Context, clnt *Client, evnt Event) error {
 
 		if sdata, ok := scheduleData.(*models.ScheduleResponse); ok {
 
-			msg := dtos.NewEventDto(evnt.Type, sdata)
+			msg := dtos.NewEventDto(EventBroadcastSchedule, sdata)
 
 			if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 				return utils.NewFailedSendEventResponse(clnt.Connection, evnt.Type, err)
@@ -171,7 +171,7 @@ func HandleCreateTask(ctx context.Context, clnt *Client, evnt Event) error {
 				}
 			}(clnt.Manager.logger, usrData, emlData)
 
-			msg := dtos.NewEventDto(evnt.Type, *tskRes)
+			msg := dtos.NewEventDto(EventInsertResponse, *tskRes)
 
 			if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 				return utils.NewFailedSendEventResponse(clnt.Connection, evnt.Type, err)
@@ -238,7 +238,7 @@ func HandleRemoveTask(ctx context.Context, clnt *Client, evnt Event) error {
 			return utils.NewDbErr("delete", "task", err)
 		}
 
-		msg := dtos.NewEventDto(evnt.Type, delCountRes)
+		msg := dtos.NewEventDto(EventRemovedResponse, delCountRes)
 
 		if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 			return utils.NewFailedToSendErr(clnt.Connection, err)
@@ -312,7 +312,7 @@ func HandleEditTask(ctx context.Context, clnt *Client, evnt Event) error {
 			return utils.NewTypeCastErr(rsltRes, results, nil)
 		}
 
-		msg := dtos.NewEventDto(evnt.Type, rsltRes)
+		msg := dtos.NewEventDto(EventUpdateResponse, rsltRes)
 
 		if err = utils.MustSendMessage(clnt.Connection, msg); err != nil {
 			return utils.NewFailedSendEventResponse(clnt.Connection, evnt.Type, err)
@@ -332,7 +332,7 @@ func HandleBroadcastSchedule(ctx context.Context, clnt *Client, evnt Event) erro
 }
 
 func closeOnTimeout(clnt *Client, eventType string) {
-	timeoutErr := utils.NewTimeoutErr("delete task", nil)
+	timeoutErr := utils.NewTimeoutErr(eventType, nil)
 	clnt.Manager.logger.MustDebug(timeoutErr.Error())
 	if err := clnt.Connection.Close(); err != nil {
 		clnt.Manager.logger.MustDebug(fmt.Sprintf("could not close connection on client: %v", clnt.Connection.RemoteAddr().String()))

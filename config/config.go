@@ -189,18 +189,16 @@ func ReadEmailConfig() (*ZEmailConfig, error) {
 }
 
 func IsValidOrigin(origin string) bool {
-	var isValid bool = false
-	switch origin {
-	case "http://localhost:3000":
-		isValid = true
-	case "https://localhost:3000":
-		isValid = true
-	case "http://zachpalmer.dev":
-		isValid = true
-	case "https://zachpalmer.dev":
-		isValid = true
-	default:
-		isValid = false
-	}
-	return isValid
+	return true
+	//	validOrigin := map[string]bool{
+	//		"http://localhost:3000":      true,
+	//		"https://localhost:3000":     true,
+	//		"http://zachpalmer.dev":      true,
+	//		"https://zachpalmer.dev":     true,
+	//		"http://www.zachpalmer.dev":  true,
+	//		"https://www.zachpalmer.dev": true,
+	//		"www.zachpalmer.dev":         true,
+	//	}
+	//
+	// return validOrigin[origin]
 }

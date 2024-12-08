@@ -1,0 +1,139 @@
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:36PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:49530, Duration: 2024-12-07 20:36:23.019593 -0600 CST m=+54.872204168, Status: 500","time":"8:36PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:36PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:49530, Duration: 2024-12-07 20:36:23.195225 -0600 CST m=+55.047837084, Status: 500","time":"8:36PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:39PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50335, Duration: 2024-12-07 20:39:48.672217 -0600 CST m=+260.525901251, Status: 500","time":"8:39PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:39PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50335, Duration: 2024-12-07 20:39:49.490707 -0600 CST m=+261.344395168, Status: 500","time":"8:39PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:49PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53014, Duration: 2024-12-07 20:49:43.449387 -0600 CST m=+855.306174876, Status: 500","time":"8:49PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:49PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53014, Duration: 2024-12-07 20:49:44.448065 -0600 CST m=+856.304857918, Status: 500","time":"8:49PM"}
+{"level":"debug","msg":"Method: POST, URI: /zypher?txt=abcd%20abcd\u0026shft=1\u0026shftcount=2\u0026hshcount=5\u0026alt=true\u0026ignspace=true\u0026restricthash=false, IP: [::1]:53428, Duration: 2024-12-07 20:50:48.197464 -0600 CST m=+920.054059001, Status: 200","time":"8:50PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:50PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53428, Duration: 2024-12-07 20:50:54.330011 -0600 CST m=+926.180138626, Status: 500","time":"8:50PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:51PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53428, Duration: 2024-12-07 20:51:13.887955 -0600 CST m=+945.728532043, Status: 500","time":"8:51PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:52PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53428, Duration: 2024-12-07 20:52:08.323198 -0600 CST m=+1000.160164959, Status: 500","time":"8:52PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:52PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:53428, Duration: 2024-12-07 20:52:09.642519 -0600 CST m=+1001.479477959, Status: 500","time":"8:52PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:53PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:54240, Duration: 2024-12-07 20:53:12.68267 -0600 CST m=+1064.519592668, Status: 500","time":"8:53PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:53PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:54240, Duration: 2024-12-07 20:53:44.061008 -0600 CST m=+1095.897961793, Status: 500","time":"8:53PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:55PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:54753, Duration: 2024-12-07 20:55:15.614999 -0600 CST m=+1187.452047459, Status: 500","time":"8:55PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:55PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:54753, Duration: 2024-12-07 20:55:17.922905 -0600 CST m=+1189.759955418, Status: 500","time":"8:55PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:56PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55138, Duration: 2024-12-07 20:56:50.554779 -0600 CST m=+1282.391925251, Status: 500","time":"8:56PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:56PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55138, Duration: 2024-12-07 20:56:51.300548 -0600 CST m=+1283.137695334, Status: 500","time":"8:56PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:57PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55192, Duration: 2024-12-07 20:57:03.097259 -0600 CST m=+1294.934418834, Status: 500","time":"8:57PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:58PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55503, Duration: 2024-12-07 20:58:19.56405 -0600 CST m=+1371.401289043, Status: 500","time":"8:58PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:58PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55503, Duration: 2024-12-07 20:58:21.075291 -0600 CST m=+1372.912531334, Status: 500","time":"8:58PM"}
+{"level":"debug","msg":"cache error: dial tcp: lookup redis-service: no such host","time":"8:59PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55503, Duration: 2024-12-07 20:59:06.999558 -0600 CST m=+1418.836845709, Status: 500","time":"8:59PM"}
+{"level":"debug","msg":"error returned from cahce check.. err: cacheId: client id: 3; does not have a value for Key: Zach Palmer","time":"8:59PM"}
+{"level":"trace","msg":"portfolio data was nil from cache.. fetching from database ....","time":"8:59PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55784, Duration: 2024-12-07 20:59:27.459607 -0600 CST m=+6.203099917, Status: 200","time":"8:59PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"8:59PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 20:59:39.2445 -0600 CST m=+17.988005542, Status: 200","time":"8:59PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"8:59PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 20:59:39.927223 -0600 CST m=+18.670729167, Status: 200","time":"8:59PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"8:59PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 21:01:10.894161 -0600 CST m=+109.637760834, Status: 200","time":"9:01PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:01PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 21:01:11.591714 -0600 CST m=+110.335315167, Status: 200","time":"9:01PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:01PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 21:01:52.334635 -0600 CST m=+151.078278042, Status: 200","time":"9:01PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:01PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:55938, Duration: 2024-12-07 21:01:52.33804 -0600 CST m=+151.081683417, Status: 200","time":"9:01PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:01PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:58573, Duration: 2024-12-07 21:08:36.729836 -0600 CST m=+555.473899126, Status: 200","time":"9:08PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:08PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59112, Duration: 2024-12-07 21:10:23.50993 -0600 CST m=+662.254103376, Status: 200","time":"9:10PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:10PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59112, Duration: 2024-12-07 21:10:34.949393 -0600 CST m=+673.693578584, Status: 200","time":"9:10PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:10PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59112, Duration: 2024-12-07 21:10:35.073712 -0600 CST m=+673.817897792, Status: 200","time":"9:10PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:10PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:13:11.844715 -0600 CST m=+830.589063209, Status: 200","time":"9:13PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:13PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:14:39.08689 -0600 CST m=+917.831328459, Status: 200","time":"9:14PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:14PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:14:59.272036 -0600 CST m=+938.016495292, Status: 200","time":"9:14PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:14PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:15:37.122299 -0600 CST m=+975.866797459, Status: 200","time":"9:15PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:15PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:16:12.530565 -0600 CST m=+1011.275100251, Status: 200","time":"9:16PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:16PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:16:20.17951 -0600 CST m=+1018.924053709, Status: 200","time":"9:16PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:16PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:16:49.251565 -0600 CST m=+1047.996138459, Status: 200","time":"9:16PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:16PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:59986, Duration: 2024-12-07 21:16:50.966832 -0600 CST m=+1049.711407876, Status: 200","time":"9:16PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:16PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50039, Duration: 2024-12-07 21:37:25.478605 -0600 CST m=+2284.242299417, Status: 200","time":"9:37PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:37PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50039, Duration: 2024-12-07 21:37:25.485286 -0600 CST m=+2284.248980792, Status: 200","time":"9:37PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:37PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50903, Duration: 2024-12-07 21:40:48.042712 -0600 CST m=+2486.807613584, Status: 200","time":"9:40PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:40PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50903, Duration: 2024-12-07 21:40:48.045851 -0600 CST m=+2486.810753542, Status: 200","time":"9:40PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:40PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50903, Duration: 2024-12-07 21:41:57.755248 -0600 CST m=+2556.520565292, Status: 200","time":"9:41PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:41PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50903, Duration: 2024-12-07 21:41:57.777334 -0600 CST m=+2556.542651626, Status: 200","time":"9:41PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:41PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:47:23.841668 -0600 CST m=+2882.592678751, Status: 200","time":"9:47PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:47PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:47:23.845699 -0600 CST m=+2882.596710501, Status: 200","time":"9:47PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:47PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:47:33.27766 -0600 CST m=+2892.028256251, Status: 200","time":"9:47PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:47PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:47:33.290331 -0600 CST m=+2892.040926501, Status: 200","time":"9:47PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:47PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:49:11.479417 -0600 CST m=+2990.229544792, Status: 200","time":"9:49PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:49PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:49:20.704191 -0600 CST m=+2999.454321126, Status: 200","time":"9:49PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:49PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:49:20.707961 -0600 CST m=+2999.458091042, Status: 200","time":"9:49PM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"9:49PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:50:07.85211 -0600 CST m=+3046.602253251, Status: 200","time":"9:50PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:50PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:52722, Duration: 2024-12-07 21:50:20.851536 -0600 CST m=+3059.601682459, Status: 200","time":"9:50PM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"9:50PM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64096, Duration: 2024-12-08 02:06:43.968553 -0600 CST m=+18442.792001917, Status: 200","time":"2:06AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:06AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64096, Duration: 2024-12-08 02:06:43.974368 -0600 CST m=+18442.797817126, Status: 200","time":"2:06AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:06AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64096, Duration: 2024-12-08 02:07:19.537376 -0600 CST m=+18478.360979584, Status: 200","time":"2:07AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:07AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:09:36.042276 -0600 CST m=+18614.866474126, Status: 200","time":"2:09AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:09AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:10:02.348549 -0600 CST m=+18641.172861417, Status: 200","time":"2:10AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:10AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:10:14.522782 -0600 CST m=+18653.347147626, Status: 200","time":"2:10AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:10AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:10:16.807441 -0600 CST m=+18655.631816459, Status: 200","time":"2:10AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:10AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:11:00.453597 -0600 CST m=+18699.278163084, Status: 200","time":"2:11AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:11AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:11:33.521246 -0600 CST m=+18732.345955751, Status: 200","time":"2:11AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:11AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:11:45.863504 -0600 CST m=+18744.688267584, Status: 200","time":"2:11AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:11AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:64816, Duration: 2024-12-08 02:11:56.897226 -0600 CST m=+18755.722037459, Status: 200","time":"2:11AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:11AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:49589, Duration: 2024-12-08 02:14:00.180811 -0600 CST m=+18879.006160001, Status: 200","time":"2:14AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:14AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:49589, Duration: 2024-12-08 02:14:00.187012 -0600 CST m=+18879.012360459, Status: 200","time":"2:14AM"}
+{"level":"debug","msg":"unexpected user cache error:: context canceled","time":"2:14AM"}
+{"level":"debug","msg":"Method: GET, URI: /about, IP: [::1]:50096, Duration: 2024-12-08 02:15:41.857856 -0600 CST m=+18980.683647292, Status: 200","time":"2:15AM"}
+{"level":"debug","msg":"could not cast type: [\u003cnil\u003e] into type: [dtos.UserDto] ","time":"2:15AM"}

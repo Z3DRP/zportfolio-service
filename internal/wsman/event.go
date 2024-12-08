@@ -7,7 +7,6 @@ import (
 
 type Event struct {
 	Type    string          `json:"type"`
-	Period  string          `json:"period"`
 	Payload json.RawMessage `json:"payload"`
 }
 
@@ -19,6 +18,9 @@ const (
 	EventCreateTask        = "create_task"
 	EventUpdateTask        = "update_task"
 	EventRemoveTask        = "remove_task"
+	EventInsertResponse    = "insert_response"
+	EventUpdateResponse    = "update_response"
+	EventRemovedResponse   = "remove_response"
 )
 
 type EvntTaskDelete struct {

@@ -58,18 +58,26 @@ func getZypher(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAbout(w http.ResponseWriter, r *http.Request) {
-	handlers.GetAbout(w, r, *logger)
+	handlers.GetAbout(w, r)
 }
 
 func headerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if config.IsValidOrigin(origin) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-		}
+		logger.MustDebug(fmt.Sprintf("orign: %v", origin))
+
+		//if config.IsValidOrigin(origin) {
+		//	w.Header().Set("Access-Control-Allow-Origin", origin)
+		//	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		//	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		//}
+
+		//if r.Method == http.MethodOptions {
+		//	w.WriteHeader(http.StatusOK)
+		//	return
+		//}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Headers", "Content-Type")
 		next.ServeHTTP(w, r)
 	})
 }

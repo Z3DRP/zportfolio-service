@@ -14,10 +14,20 @@ import (
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/Z3DRP/zportfolio-service/internal/utils"
-	"github.com/Z3DRP/zportfolio-service/internal/zlogger"
+	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 )
 
-func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
+var logfile = zlg.NewLogFile(
+	zlg.WithFilename(fmt.Sprintf("%v/%v", config.LogPrefix, "routes.log")),
+)
+var logger = zlg.NewLogger(
+	logfile,
+	zlg.WithJsonFormatter(true),
+	zlg.WithLevel("trace"),
+	zlg.WithReportCaller(false),
+)
+
+func GetAbout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	select {
 	case <-r.Context().Done():
@@ -27,15 +37,19 @@ func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 	default:
 		var portfolioData models.Responser
 		cacheClient, err := dacstore.NewRedisClient(r.Context())
-
+		logger.MustDebug("calling cache")
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("cache error: %s", err))
 			http.Error(w, "request cache error", http.StatusInternalServerError)
 			return
 		}
 
+		logger.MustDebug("connected without error to redis")
+
 		portfolioData, err = dacstore.CheckPortfolioData(r.Context(), cacheClient)
 		var noResult *dacstore.ErrNoCacheResult
+
+		logger.MustDebug("about to check cache")
 
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("error returned from cahce check.. err: %v", err))
@@ -46,9 +60,13 @@ func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 			}
 		}
 
+		logger.MustDebug("no error from cache check")
+
 		if portfolioData == nil {
-			logger.MustTrace("portfolio data was nil from cache.. fetching from database ....")
+			logger.MustDebug("portfolio data was nil from cache.. fetching from database ....")
 			portfolioData, err = controller.GetPortfolioData(r.Context())
+
+			logger.MustDebug("fected from db")
 
 			if err != nil {
 				if errors.Is(err, dacstore.ErrFetchSkill) {
@@ -69,19 +87,26 @@ func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 				http.Error(w, "an unexpecting error occurred while fetching data", http.StatusInternalServerError)
 				return
 			}
+			logger.MustDebug("no error from database call")
 			err = dacstore.SetPortfolioData(r.Context(), cacheClient, portfolioData)
 			if err != nil {
 				logger.MustDebug(fmt.Sprintf("could not set portfolio cache data: %s", err))
 				http.Error(w, "an error occurred while setting portfolio cache data", http.StatusInternalServerError)
 				return
 			}
+
+			logger.MustDebug("no error setting cache")
 		}
+
+		logger.MustDebug("cache was not nil")
 
 		settings, err := config.ReadZypherSettings()
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
 			return
 		}
+
+		logger.MustDebug("about to update vistor count")
 
 		go updateVisitorCount(settings, cacheClient, r, logger)
 
@@ -101,9 +126,9 @@ func GetAbout(w http.ResponseWriter, r *http.Request, logger zlogger.Zlogrus) {
 	}
 }
 
-func updateVisitorCount(settings config.ZypherConfig, cacheClient *redis.Client, r *http.Request, logger zlogger.Zlogrus) {
+func updateVisitorCount(settings config.ZypherConfig, cacheClient *redis.Client, r *http.Request, logger *zlg.Zlogrus) {
 	uip := utils.GetIP(r)
-	logDebug := func(logr zlogger.Zlogrus, err error) {
+	logDebug := func(logr *zlg.Zlogrus, err error) {
 		logr.MustDebug(err.Error())
 	}
 	usr, err := dacstore.CheckUserData(r.Context(), cacheClient, uip)
@@ -138,7 +163,7 @@ func updateVisitorCount(settings config.ZypherConfig, cacheClient *redis.Client,
 			logDebug(logger, err)
 			return
 		} else {
-			logger.MustDebug(fmt.Sprint("the following visitor has been created:: %v", res.PrintRes()))
+			logger.MustDebug(fmt.Sprintf("the following visitor has been created:: %v", res.PrintRes()))
 			return
 		}
 	}
@@ -149,5 +174,5 @@ func updateVisitorCount(settings config.ZypherConfig, cacheClient *redis.Client,
 		return
 	}
 
-	logger.MustDebug(fmt.Sprint("visitor %v has been updated successfully", usrDto.Uid))
+	logger.MustDebug(fmt.Sprintf("visitor %v has been updated successfully", usrDto.Uid))
 }

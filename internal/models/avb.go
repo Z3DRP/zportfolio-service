@@ -73,13 +73,14 @@ func NewAvailableDay(wkday, frmHr, frmMin, toHr, toMin int) Availabler {
 }
 
 type Availability struct {
-	Id            primitive.ObjectID `bson:"_id,omitempty"`
-	Day           int                `bson:"day"`
-	DayName       string             `bson:"day_name"`
-	AvailableFrom time.Time          `bson:"available_from"`
-	AvailableTo   time.Time          `bson:"available_to"`
-	CreatedAt     time.Time          `bson:"created_at"`
-	Newest        bool               `bson:"newest"`
+	Id                primitive.ObjectID `bson:"_id,omitempty"`
+	Day               int                `bson:"day"`
+	DayName           string             `bson:"day_name"`
+	AvailableFrom     time.Time          `bson:"available_from"`
+	AvailableTo       time.Time          `bson:"available_to"`
+	CreatedAt         time.Time          `bson:"created_at"`
+	Newest            bool               `bson:"newest"`
+	FormattedDateTime string             `bson:"formatted"`
 }
 
 func (a *Availability) FormattedTime() string {
@@ -95,12 +96,14 @@ func NewAvailability(openDay AvailableDay) Availabler {
 	avbFrom := time.Date(curYr, STD_MONTH, STD_DAY, openDay.FromHour, openDay.FromMin, STD_SEC, STD_SEC, time.Local)
 	avbTo := time.Date(curYr, STD_MONTH, STD_DAY, openDay.FromHour, openDay.FromMin, STD_SEC, STD_SEC, time.Local)
 	day := NewDay(openDay.WeekDay)
-	return &Availability{
+	avb := Availability{
 		Day:           openDay.WeekDay,
 		DayName:       day.String(),
 		AvailableFrom: avbFrom,
 		AvailableTo:   avbTo,
 	}
+	avb.FormattedDateTime = FormatAvailability(avb.StartDay(), avb.AvailableFrom.Month().String(), avb.AvailableFrom.Day(), avb.AvailableFrom.Year(), avb.FormattedTime())
+	return &avb
 }
 
 func (d Availability) Time() string {
@@ -135,6 +138,6 @@ func (d Availability) EndTime() string {
 	return fmt.Sprintf("%v:%v", d.AvailableTo.Hour(), d.AvailableTo.Minute())
 }
 
-func (d Availability) FormattedAvailability() string {
-	return fmt.Sprintf("%v %v %v, %v - %v", d.StartDay(), d.AvailableFrom.Month().String(), d.AvailableFrom.Day(), d.AvailableFrom.Year(), d.FormattedTime())
+func FormatAvailability(startDay, month string, day, yr int, avTime string) string {
+	return fmt.Sprintf("%v %v %v, %v - %v", startDay, month, day, yr, avTime)
 }

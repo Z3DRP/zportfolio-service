@@ -4,19 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/Z3DRP/zportfolio-service/config"
 	"github.com/Z3DRP/zportfolio-service/internal/adapters"
 	"github.com/Z3DRP/zportfolio-service/internal/dtos"
 	"github.com/Z3DRP/zportfolio-service/internal/models"
 	"github.com/Z3DRP/zportfolio-service/internal/utils"
+	zlg "github.com/Z3DRP/zportfolio-service/internal/zlogger"
 	"github.com/redis/go-redis/v9"
 )
 
 var rClient *redis.Client
 var redisOnce sync.Once
 var redisConErr error
+
+var zlogfile = zlg.NewLogFile(
+	zlg.WithFilename(fmt.Sprintf("%v/%v", config.LogPrefix, "cache.log")),
+)
+
+var loggr = zlg.NewLogger(
+	zlogfile,
+	zlg.WithJsonFormatter(true),
+	zlg.WithLevel("debug"),
+	zlg.WithReportCaller(false),
+)
 
 type ErrNoCacheResult struct {
 	ClientId *redis.IntCmd
@@ -61,20 +75,71 @@ func NewRedisConnErr(cid *redis.IntCmd, e error) *ErrRedisConnect {
 }
 
 func NewRedisClient(ctx context.Context) (*redis.Client, error) {
+	loggr.MustDebug("in new client func")
+
+	//Addr:     "127.0.0.1:6379", // development redis container
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+	if host == "" {
+		host = "redis-service"
+	}
+	if port == "" {
+		port = "6379"
+	}
+	adr := fmt.Sprintf("%v:%v", host, port)
+
 	redisOnce.Do(func() {
 		rClient = redis.NewClient(&redis.Options{
-			Addr:     "redis-service:6379",
+			Addr: "redis-service:6379", //original prod redis container change back
+			//Addr:     "127.0.0.1:6379",
 			Password: "",
 			DB:       0,
 		})
-		_, err := rClient.Ping(ctx).Result()
+		pong, err := rClient.Ping(ctx).Result()
+
+		loggr.MustDebug(fmt.Sprintf("result from ping in go container: %v", pong))
+
 		if err != nil {
 			rClient = nil
 			redisConErr = err
 		}
 	})
-	logger.MustTrace(fmt.Sprintf("returning redis client: %v", rClient))
+
+	if rClient == nil {
+		initializeRedisCon(ctx, adr)
+	}
+
+	pong, perr := rClient.Ping(ctx).Result()
+	if perr != nil {
+		logger.MustDebug(fmt.Sprintf("the following error occurred when pinging redis: %v", perr))
+	}
+
+	if pong != "" {
+		logger.MustDebug(fmt.Sprintf("the redis pong result: %v", pong))
+	}
+
+	loggr.MustDebug(fmt.Sprintf("returning redis client: %v, redis address: %v", rClient, adr))
+
 	return rClient, redisConErr
+}
+
+func initializeRedisCon(ctx context.Context, adr string) {
+	rClient = redis.NewClient(&redis.Options{
+		//Addr: "redis-service:6379", //original prod redis container change back
+		Addr: adr,
+		//Addr:     "127.0.0.1:6379",
+		Password: "",
+		DB:       0,
+	})
+	pong, err := rClient.Ping(ctx).Result()
+
+	loggr.MustDebug(fmt.Sprintf("result from ping in go container: %v", pong))
+
+	if err != nil {
+		rClient = nil
+		redisConErr = err
+	}
+
 }
 
 func SetZypherValue(ctx context.Context, client *redis.Client, txt string) error {
@@ -91,8 +156,9 @@ func CheckZypherValue(ctx context.Context, client *redis.Client, txt string) (st
 }
 
 func SetPortfolioData(ctx context.Context, client *redis.Client, data models.Responser) error {
+	loggr.MustDebug("setting portfolio data")
 	jsonData, err := json.Marshal(data)
-	logger.MustDebug(fmt.Sprintf("setting cache with:: client: %v; data: %s", client, jsonData))
+	loggr.MustDebug(fmt.Sprintf("setting cache with:: client: %v; data: %s", client, jsonData))
 	if err != nil {
 		return err
 	}
@@ -104,27 +170,27 @@ func SetPortfolioData(ctx context.Context, client *redis.Client, data models.Res
 }
 
 func CheckPortfolioData(ctx context.Context, client *redis.Client) (models.Responser, error) {
-
+	loggr.MustDebug("checking data....")
 	val, err := client.Get(ctx, "ZachPalmer").Result()
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error occurred while getting portfolio cache:: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error occurred while getting portfolio cache:: %v", err))
 		if err != redis.Nil {
-			logger.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
+			loggr.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
 			return nil, err
 		}
 		return nil, NewNoCacheResultErr(client.ClientID(ctx), "Zach Palmer", err)
 	}
 
 	// if val == "" {
-	// 	logger.MustTrace("initial key value.. or key was empty")
+	// 	loggr.MustTrace("initial key value.. or key was empty")
 	// 	return nil, NewNoCacheResultErr(client.ClientID(ctx), "Zach Palmer", nil)
 	// }
-	logger.MustDebug(fmt.Sprintf("no error occurred fetching cache:: value: %v; begining to unmarshal...", val))
+	loggr.MustDebug(fmt.Sprintf("no error occurred fetching cache:: value: %v; begining to unmarshal...", val))
 
 	var data models.PortfolioResponse
 	err = json.Unmarshal([]byte(val), &data)
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error unmarchalling portfolio data: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error unmarchalling portfolio data: %v", err))
 		return nil, err
 	}
 	return &data, nil
@@ -149,9 +215,9 @@ func CheckScheduleData(ctx context.Context, client *redis.Client, pstart, pend t
 	key := fmt.Sprintf("%v-%v", pstart.String(), pend.String())
 	val, err := client.Get(ctx, key).Result()
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error occurred while getting schedule cache:: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error occurred while getting schedule cache:: %v", err))
 		if err != redis.Nil {
-			logger.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
+			loggr.MustDebug(fmt.Sprintf("unexpected cache error:: %v", err))
 			return nil, err
 		}
 		return nil, NewNoCacheResultErr(client.ClientID(ctx), key, err)
@@ -160,7 +226,7 @@ func CheckScheduleData(ctx context.Context, client *redis.Client, pstart, pend t
 	var data models.ScheduleResponse
 	err = json.Unmarshal([]byte(val), &data)
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error unmarshalling schedule data: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error unmarshalling schedule data: %v", err))
 		return nil, err
 	}
 	return &data, nil
@@ -177,17 +243,18 @@ func SetUserData(ctx context.Context, client *redis.Client, name, company, phone
 
 	err = client.Set(ctx, k, data, 0).Err()
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error caching user data:: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error caching user data:: %v", err))
 		return fmt.Errorf("error caching user data:: %w", err)
 	}
 	return nil
 }
 
 func CheckUserData(ctx context.Context, client *redis.Client, k string) (dtos.DTOer, error) {
+	loggr.MustDebug("checking usr data...")
 	val, err := client.Get(ctx, k).Result()
 	if err != nil {
 		if err != redis.Nil {
-			logger.MustDebug(fmt.Sprintf("unexpected user cache error:: %v", err))
+			loggr.MustDebug(fmt.Sprintf("unexpected user cache error:: %v", err))
 			return nil, fmt.Errorf("unexpected user cache error:: %w", err)
 		}
 		return nil, NewNoCacheResultErr(client.ClientID(ctx), k, err)
@@ -196,7 +263,7 @@ func CheckUserData(ctx context.Context, client *redis.Client, k string) (dtos.DT
 	var data dtos.UserDto
 	err = json.Unmarshal([]byte(val), &data)
 	if err != nil {
-		logger.MustDebug(fmt.Sprintf("error unmarshalling user data: %v", err))
+		loggr.MustDebug(fmt.Sprintf("error unmarshalling user data: %v", err))
 		return nil, fmt.Errorf("unexpected user cache error:: %w", err)
 	}
 	return &data, nil
