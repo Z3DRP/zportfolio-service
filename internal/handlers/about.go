@@ -100,7 +100,7 @@ func GetAbout(w http.ResponseWriter, r *http.Request) {
 
 		logger.MustDebug("cache was not nil")
 
-		settings, err := config.ReadZypherSettings()
+		//settings, err := config.ReadZypherSettings()
 		if err != nil {
 			logger.MustDebug(fmt.Sprintf("an error occurred while reading zypher config:: %v", err))
 			return
@@ -108,7 +108,7 @@ func GetAbout(w http.ResponseWriter, r *http.Request) {
 
 		logger.MustDebug("about to update vistor count")
 
-		go updateVisitorCount(settings, cacheClient, r, logger)
+		//go updateVisitorCount(settings, cacheClient, r, logger)
 
 		if pdata, ok := portfolioData.(*models.PortfolioResponse); ok {
 			// json.NewEncoder writes the data to request or errors

@@ -251,6 +251,7 @@ func SetUserData(ctx context.Context, client *redis.Client, name, company, phone
 
 func CheckUserData(ctx context.Context, client *redis.Client, k string) (dtos.DTOer, error) {
 	loggr.MustDebug("checking usr data...")
+	loggr.MustDebug(fmt.Sprintf("using key:: %v", k))
 	val, err := client.Get(ctx, k).Result()
 	if err != nil {
 		if err != redis.Nil {
